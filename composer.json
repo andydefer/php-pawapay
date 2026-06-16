@@ -1,0 +1,32 @@
+{
+    "name": "andydefer/php-pawapay",
+    "description": "php SDK for integrating Pawapay Mobile Money payments (pay-ins, pay-outs, and webhooks) across African markets",
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "AndyDefer\\PhpPawapay\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Andy Kani",
+            "email": "andykanidimbu@gmail.com"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "andydefer/laravel-actions": "^2.4.4",
+        "andydefer/laravel-logger": "^3.7.4",
+        "andydefer/domain-structures": "^1.18",
+        "guzzlehttp/guzzle": "^7.11"
+    },
+    "require-dev": {
+        "larastan/larastan": "^3.8",
+        "laravel/pint": "^1.26",
+        "phpunit/phpunit": "^12.5",
+        "rector/rector": "*",
+        "symfony/var-dumper": "^7.0",
+        "vimeo/psalm": "^6.14"
+    }
+}
