@@ -1,6 +1,6 @@
 {
     "name": "andydefer/php-pawapay",
-    "description": "php SDK for integrating Pawapay Mobile Money payments (pay-ins, pay-outs, and webhooks) across African markets",
+    "description": "PHP SDK for integrating Pawapay Mobile Money payments (pay-ins, pay-outs, and webhooks) across African markets",
     "type": "library",
     "license": "MIT",
     "autoload": {
@@ -18,7 +18,7 @@
         "php": "^8.2",
         "andydefer/laravel-actions": "^2.4.4",
         "andydefer/laravel-logger": "^3.7.4",
-        "andydefer/domain-structures": "^1.18",
+        "andydefer/domain-structures": "^1.19.0",
         "guzzlehttp/guzzle": "^7.11"
     },
     "require-dev": {
