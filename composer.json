@@ -16,8 +16,8 @@
     ],
     "require": {
         "php": "^8.2",
-        "andydefer/laravel-actions": "^2.4.5",
-        "andydefer/laravel-logger": "^3.8.0",
+        "andydefer/laravel-actions": "^2.4.6",
+        "andydefer/laravel-logger": "^3.8.1",
         "andydefer/domain-structures": "^1.21.0",
         "guzzlehttp/guzzle": "^7.11"
     },
