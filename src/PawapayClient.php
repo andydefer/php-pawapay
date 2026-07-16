@@ -6,14 +6,19 @@ namespace AndyDefer\PhpPawapay;
 
 use AndyDefer\PhpClient\Clients\ClientService;
 use AndyDefer\PhpClient\Enums\ContentType;
-use AndyDefer\PhpClient\ValueObjects\UrlVO;
-use AndyDefer\PhpPawapay\Enums\Endpoint;
 use AndyDefer\PhpPawapay\Enums\PawaPayBaseUrl;
+use AndyDefer\PhpPawapay\Requests\CheckDepositStatusRequest;
+use AndyDefer\PhpPawapay\Requests\CreatePaymentPageRequest;
 use AndyDefer\PhpPawapay\Requests\InitiateDepositRequest;
+use AndyDefer\PhpPawapay\Requests\ResendDepositCallbackRequest;
+use AndyDefer\PhpPawapay\Responses\CheckDepositStatusResponse;
+use AndyDefer\PhpPawapay\Responses\CreatePaymentPageResponse;
 use AndyDefer\PhpPawapay\Responses\InitiateDepositResponse;
+use AndyDefer\PhpPawapay\Responses\ResendDepositCallbackResponse;
+use AndyDefer\PhpPawapay\Structures\PaymentPageStruct;
 use AndyDefer\PhpPawapay\ValueObjects\InitiateDepositVO;
 
-final class PawapayClient
+class PawapayClient
 {
     private ClientService $client;
 
@@ -28,17 +33,16 @@ final class PawapayClient
         $this->client = $client ?? new ClientService;
     }
 
-    /**
-     * Build a full URL from an endpoint.
-     */
-    private function buildUrl(Endpoint $endpoint): UrlVO
+    public function setBaseUrl(PawaPayBaseUrl $baseUrl): self
     {
-        return new UrlVO($this->baseUrl->value.ltrim($endpoint->value, '/'));
+        $this->baseUrl = $baseUrl;
+
+        return $this;
     }
 
     public function initiateDeposit(InitiateDepositVO $deposit): InitiateDepositResponse
     {
-        $request = new InitiateDepositRequest($deposit);
+        $request = new InitiateDepositRequest($deposit, $this->baseUrl);
 
         $request->getHeaders()
             ->setAuthorization($this->apiToken)
@@ -50,12 +54,72 @@ final class PawapayClient
             ->setConnectTimeout(10)
             ->setHttpErrors(false);
 
-        $url = $this->buildUrl(Endpoint::DEPOSITS_INITIATE);
-
         return $this->client->post(
-            $url->getValue(),
+            $request->getUrl()->getValue(),
             $request,
             InitiateDepositResponse::class
+        );
+    }
+
+    public function checkDepositStatus(string $depositId): CheckDepositStatusResponse
+    {
+        $request = new CheckDepositStatusRequest($depositId, $this->baseUrl);
+
+        $request->getHeaders()
+            ->setAuthorization($this->apiToken)
+            ->setAccept(ContentType::JSON);
+
+        $request->getOptions()
+            ->setTimeout(30)
+            ->setConnectTimeout(10)
+            ->setHttpErrors(false);
+
+        return $this->client->get(
+            $request->getUrl()->getValue(),
+            $request,
+            CheckDepositStatusResponse::class
+        );
+    }
+
+    public function resendDepositCallback(string $depositId): ResendDepositCallbackResponse
+    {
+        $request = new ResendDepositCallbackRequest($depositId, $this->baseUrl);
+
+        $request->getHeaders()
+            ->setAuthorization($this->apiToken)
+            ->setContentType(ContentType::JSON)
+            ->setAccept(ContentType::JSON);
+
+        $request->getOptions()
+            ->setTimeout(30)
+            ->setConnectTimeout(10)
+            ->setHttpErrors(false);
+
+        return $this->client->post(
+            $request->getUrl()->getValue(),
+            $request,
+            ResendDepositCallbackResponse::class
+        );
+    }
+
+    public function createPaymentPage(PaymentPageStruct $paymentPage): CreatePaymentPageResponse
+    {
+        $request = new CreatePaymentPageRequest($paymentPage, $this->baseUrl);
+
+        $request->getHeaders()
+            ->setAuthorization($this->apiToken)
+            ->setContentType(ContentType::JSON)
+            ->setAccept(ContentType::JSON);
+
+        $request->getOptions()
+            ->setTimeout(30)
+            ->setConnectTimeout(10)
+            ->setHttpErrors(false);
+
+        return $this->client->post(
+            $request->getUrl()->getValue(),
+            $request,
+            CreatePaymentPageResponse::class
         );
     }
 }

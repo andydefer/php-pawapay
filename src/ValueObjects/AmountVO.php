@@ -20,8 +20,8 @@ final class AmountVO extends AbstractValueObject
         }
     }
 
-    public function getValue(): float
+    public function getValue(): string
     {
-        return $this->value;
+        return (string) $this->value;
     }
 }

@@ -4,26 +4,51 @@ namespace AndyDefer\PhpPawapay\Enums;
 
 enum Country: string
 {
-    case BEN = 'BJ';
-    case BFA = 'BF';
-    case CMR = 'CM';
-    case CIV = 'CI';
-    case COD = 'CD';
-    case ETH = 'ET';
-    case GAB = 'GA';
-    case GHA = 'GH';
-    case KEN = 'KE';
-    case LSO = 'LS';
-    case MWI = 'MW';
-    case MOZ = 'MZ';
-    case NGA = 'NG';
-    case COG = 'CG';
-    case RWA = 'RW';
-    case SEN = 'SN';
-    case SLE = 'SL';
-    case TZA = 'TZ';
-    case UGA = 'UG';
-    case ZMB = 'ZM';
+    // Benin
+    case BEN = 'BEN';
+    // Burkina Faso
+    case BFA = 'BFA';
+    // Cameroon
+    case CMR = 'CMR';
+    // Côte d'Ivoire
+    case CIV = 'CIV';
+    // Democratic Republic of the Congo
+    case COD = 'COD';
+    // Ethiopia
+    case ETH = 'ETH';
+    // Gabon
+    case GAB = 'GAB';
+    // Ghana
+    case GHA = 'GHA';
+    // Kenya
+    case KEN = 'KEN';
+    // Lesotho
+    case LSO = 'LSO';
+    // Malawi
+    case MWI = 'MWI';
+    // Mozambique
+    case MOZ = 'MOZ';
+    // Nigeria
+    case NGA = 'NGA';
+    // Republic of the Congo
+    case COG = 'COG';
+    // Rwanda
+    case RWA = 'RWA';
+    // Senegal
+    case SEN = 'SEN';
+    // Sierra Leone
+    case SLE = 'SLE';
+    // Tanzania
+    case TZA = 'TZA';
+    // Uganda
+    case UGA = 'UGA';
+    // Zambia
+    case ZMB = 'ZMB';
+
+    public function getIso3(): string
+    {
+        return $this->value;
+    }
 
     public function getName(): string
     {

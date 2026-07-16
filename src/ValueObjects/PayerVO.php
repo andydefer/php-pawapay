@@ -6,12 +6,12 @@ namespace AndyDefer\PhpPawapay\ValueObjects;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractValueObject;
 use AndyDefer\DomainStructures\Utils\DataObject;
-use AndyDefer\PhpPawapay\Enums\MMO;
+use AndyDefer\PhpPawapay\Enums\PayerType;
 
 final class PayerVO extends AbstractValueObject
 {
     public function __construct(
-        public readonly MMO $type,
+        public readonly PayerType $type,
         public readonly AccountDetailsVO $accountDetails
     ) {}
 

@@ -6,17 +6,28 @@ namespace AndyDefer\PhpPawapay\ValueObjects;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractValueObject;
 use InvalidArgumentException;
+use Ramsey\Uuid\Uuid;
 
 final class UuidVO extends AbstractValueObject
 {
-    public function __construct(public readonly string $value)
+    public readonly ?string $value;
+
+    public function __construct(?string $value = null)
     {
-        if (! preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i', $value)) {
-            throw new InvalidArgumentException("Invalid UUID v4: {$value}");
+        if ($value === null) {
+            $this->value = Uuid::uuid4()->toString();
+
+            return;
         }
+
+        if (! Uuid::isValid($value)) {
+            throw new InvalidArgumentException("Invalid UUID: {$value}");
+        }
+
+        $this->value = $value;
     }
 
-    public function getValue(): string
+    public function getValue(): ?string
     {
         return $this->value;
     }

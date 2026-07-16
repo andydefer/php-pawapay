@@ -11,8 +11,6 @@ use AndyDefer\PhpClient\ValueObjects\RequestBodyVO;
 use AndyDefer\PhpClient\ValueObjects\UrlVO;
 use AndyDefer\PhpPawapay\Enums\Endpoint;
 use AndyDefer\PhpPawapay\Enums\PawaPayBaseUrl;
-use AndyDefer\PhpPawapay\Graphs\AccountDetailsGraph;
-use AndyDefer\PhpPawapay\Graphs\PayerGraph;
 use AndyDefer\PhpPawapay\Structures\InitiateDepositStruct;
 use AndyDefer\PhpPawapay\ValueObjects\InitiateDepositVO;
 
@@ -29,9 +27,6 @@ final class InitiateDepositRequest extends Request
         parent::__construct();
     }
 
-    /**
-     * Set the base URL for the request.
-     */
     public function setBaseUrl(PawaPayBaseUrl $baseUrl): self
     {
         $this->baseUrl = $baseUrl;
@@ -51,31 +46,16 @@ final class InitiateDepositRequest extends Request
 
     protected function setBody(): RequestBodyVO
     {
-        $accountDetails = new AccountDetailsGraph(
-            phoneNumber: $this->deposit->payer->accountDetails->phoneNumber->getValue(),
-            provider: $this->deposit->payer->accountDetails->provider,
-        );
-
-        $payer = new PayerGraph(
-            type: $this->deposit->payer->type,
-            accountDetails: $accountDetails,
-        );
-
-        $metadata = null;
-        if ($this->deposit->metadata !== null && $this->deposit->metadata->getValue() !== null) {
-            $metadata = $this->deposit->metadata->getValue()->toArray();
-        }
-
-        $struct = new InitiateDepositStruct(
-            depositId: $this->deposit->depositId->getValue(),
-            payer: $payer,
-            amount: (string) $this->deposit->amount->getValue(),
-            currency: $this->deposit->currency,
-            preAuthorisationCode: $this->deposit->preAuthorisationCode?->getValue(),
-            clientReferenceId: $this->deposit->clientReferenceId?->getValue(),
-            customerMessage: $this->deposit->customerMessage?->getValue(),
-            metadata: $metadata,
-        );
+        $struct = InitiateDepositStruct::from([
+            'depositId' => $this->deposit->depositId,
+            'payer' => $this->deposit->payer,
+            'amount' => $this->deposit->amount,
+            'currency' => $this->deposit->currency,
+            'preAuthorisationCode' => $this->deposit->preAuthorisationCode,
+            'clientReferenceId' => $this->deposit->clientReferenceId,
+            'customerMessage' => $this->deposit->customerMessage,
+            'metadata' => $this->deposit->metadata,
+        ]);
 
         return new RequestBodyVO($struct, ContentType::JSON);
     }

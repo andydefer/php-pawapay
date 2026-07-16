@@ -6,10 +6,10 @@ namespace AndyDefer\PhpPawapay\Responses;
 
 use AndyDefer\PhpClient\Abstracts\Response;
 use AndyDefer\PhpClient\Utils\EmptyStruct;
-use AndyDefer\PhpPawapay\Enums\DepositStatus;
+use AndyDefer\PhpPawapay\Enums\ResendCallbackStatus;
 use AndyDefer\PhpPawapay\Structures\FailureReasonStruct;
 
-final class InitiateDepositResponse extends Response
+final class ResendDepositCallbackResponse extends Response
 {
     public function getDepositId(): ?string
     {
@@ -18,18 +18,11 @@ final class InitiateDepositResponse extends Response
         return $data['depositId'] ?? null;
     }
 
-    public function getStatus(): DepositStatus
+    public function getStatus(): ?ResendCallbackStatus
     {
         $data = $this->getBody()->format();
 
-        return DepositStatus::tryFrom($data['status'] ?? '') ?? DepositStatus::REJECTED;
-    }
-
-    public function getCreated(): ?string
-    {
-        $data = $this->getBody()->format();
-
-        return $data['created'] ?? null;
+        return isset($data['status']) ? ResendCallbackStatus::tryFrom($data['status']) : null;
     }
 
     public function getFailureReason(): ?FailureReasonStruct
@@ -45,22 +38,19 @@ final class InitiateDepositResponse extends Response
 
     public function isAccepted(): bool
     {
-        return $this->getStatus()->isAccepted();
+        return $this->getStatus()?->isAccepted() ?? false;
     }
 
     public function isRejected(): bool
     {
-        return $this->getStatus()->isRejected();
-    }
-
-    public function isDuplicateIgnored(): bool
-    {
-        return $this->getStatus()->isDuplicateIgnored();
+        return $this->getStatus()?->isRejected() ?? false;
     }
 
     public function hasFailureReason(): bool
     {
-        return $this->getFailureReason() !== null;
+        $data = $this->getBody()->format();
+
+        return isset($data['failureReason']);
     }
 
     public static function getStructClass(): string

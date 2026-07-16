@@ -6,11 +6,12 @@ namespace AndyDefer\PhpPawapay\Graphs;
 
 use AndyDefer\PhpClient\Abstracts\Graph;
 use AndyDefer\PhpPawapay\Enums\Provider;
+use AndyDefer\PhpPawapay\ValueObjects\PhoneNumberVO;
 
 final class AccountDetailsGraph extends Graph
 {
     public function __construct(
-        public readonly string $phoneNumber,
+        public readonly PhoneNumberVO $phoneNumber,
         public readonly Provider $provider,
     ) {}
 }
