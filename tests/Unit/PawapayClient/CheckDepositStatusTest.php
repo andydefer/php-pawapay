@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace AndyDefer\PhpPawapay\Tests\Unit;
+namespace AndyDefer\PhpPawapay\Tests\Unit\PawapayClient;
 
 use AndyDefer\PhpPawapay\Enums\Country;
 use AndyDefer\PhpPawapay\Enums\Currency;

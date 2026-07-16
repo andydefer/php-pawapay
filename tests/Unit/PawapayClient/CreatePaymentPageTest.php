@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace AndyDefer\PhpPawapay\Tests\Unit;
+namespace AndyDefer\PhpPawapay\Tests\Unit\PawapayClient;
 
 use AndyDefer\DomainStructures\Utils\StrictDataObject;
 use AndyDefer\PhpClient\ValueObjects\UrlVO;

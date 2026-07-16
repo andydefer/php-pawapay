@@ -21,7 +21,8 @@ final class MockPawapayClient extends PawapayClient
     {
         $this->mockHandler = new MockHandler;
         $handlerStack = HandlerStack::create($this->mockHandler);
-        $clientService = new ClientService(new Client(['handler' => $handlerStack]));
+        $guzzleClient = new Client(['handler' => $handlerStack]);
+        $clientService = new ClientService($guzzleClient);
 
         parent::__construct($apiToken, PawaPayBaseUrl::SANDBOX, $clientService);
     }

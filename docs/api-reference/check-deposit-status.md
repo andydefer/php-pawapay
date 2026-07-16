@@ -1,4 +1,4 @@
-# Get Deposit - Référence Technique
+# Check Deposit Status - Référence Technique
 
 ## 📖 Description
 
@@ -203,7 +203,6 @@ Accept: application/json
 
 ```json
 {
-  "status": "REJECTED",
   "failureReason": {
     "failureCode": "AUTHENTICATION_ERROR",
     "failureMessage": "The API token in the request is invalid."
@@ -215,7 +214,6 @@ Accept: application/json
 
 ```json
 {
-  "status": "REJECTED",
   "failureReason": {
     "failureCode": "AUTHORISATION_ERROR",
     "failureMessage": "The API token in the request is not authorised for this endpoint."
@@ -240,12 +238,12 @@ Accept: application/json
 
 | Champ | Type | Description |
 |-------|------|-------------|
-| `status` | `string` | Statut de recherche (`FOUND`, `NOT_FOUND`, `REJECTED`) |
+| `status` | `string` | Statut de recherche (`FOUND`, `NOT_FOUND`) |
 | `data.depositId` | `string` | ID unique du dépôt |
-| `data.status` | `string` | Statut du dépôt (`ACCEPTED`, `PROCESSING`, `IN_RECONCILIATION`, `COMPLETED`, `FAILED`, `REJECTED`) |
+| `data.status` | `string` | Statut du dépôt (`ACCEPTED`, `PROCESSING`, `IN_RECONCILIATION`, `COMPLETED`, `FAILED`) |
 | `data.amount` | `string` | Montant du dépôt |
 | `data.currency` | `string` | Devise du dépôt |
-| `data.country` | `string` | Code pays (ISO 3166-1 alpha-3) |
+| `data.country` | `string` | Code pays ISO3 |
 | `data.payer.type` | `string` | Type de payeur (`MMO`) |
 | `data.payer.accountDetails.phoneNumber` | `string` | Numéro de téléphone du payeur |
 | `data.payer.accountDetails.provider` | `string` | Fournisseur Mobile Money |
@@ -261,7 +259,7 @@ Accept: application/json
 
 ## 💻 Utilisation avec le SDK
 
-### Exemple complet
+### Exemple avec Builder (recommandé)
 
 ```php
 <?php
@@ -270,71 +268,67 @@ declare(strict_types=1);
 
 require './vendor/autoload.php';
 
-use AndyDefer\PhpPawapay\PawapayClient;
+use AndyDefer\PhpPawapay\Builders\CheckDepositStatusBuilder;
 use AndyDefer\PhpPawapay\Enums\PawaPayBaseUrl;
-use AndyDefer\PhpClient\Enums\ContentType;
 
-// 1. Créer le client
-$client = new PawapayClient(
-    apiToken: 'your-api-token-here',
-    baseUrl: PawaPayBaseUrl::SANDBOX
-);
+// 1. Vérifier le statut avec le Builder
+$response = CheckDepositStatusBuilder::create(
+    apiToken: 'your-api-token-here'
+)
+    ->withBaseUrl(PawaPayBaseUrl::SANDBOX)
+    ->withDepositId('8917c345-4791-4285-a416-62f24b6982db')
+    ->execute();
 
-// 2. Récupérer le dépôt
-$depositId = '8917c345-4791-4285-a416-62f24b6982db';
-$response = $client->getDeposit($depositId);
-
-// 3. Traiter la réponse
+// 2. Traiter la réponse
 if ($response->isFound()) {
     $data = $response->getDepositData();
     if ($data !== null) {
         echo "✅ Dépôt trouvé !\n";
-        echo "ID: " . $data->depositId . "\n";
-        echo "Statut: " . $data->status->value . "\n";
-        echo "Montant: " . $data->amount . " " . $data->currency->value . "\n";
-        echo "Pays: " . $data->country->getName() . "\n";
-        echo "Payeur: " . $data->payer->accountDetails->phoneNumber . "\n";
-        echo "Provider: " . $data->payer->accountDetails->provider->value . "\n";
-        echo "Créé: " . $data->created . "\n";
-        
+        echo 'ID: ' . $data->depositId . "\n";
+        echo 'Statut: ' . $data->status->value . "\n";
+        echo 'Montant: ' . $data->amount . ' ' . $data->currency->value . "\n";
+        echo 'Pays: ' . $data->country->getName() . "\n";
+        echo 'Payeur: ' . $data->payer->accountDetails->phoneNumber . "\n";
+        echo 'Provider: ' . $data->payer->accountDetails->provider->value . "\n";
+        echo 'Créé: ' . $data->created . "\n";
+
         if ($data->providerTransactionId !== null) {
-            echo "ID Transaction Provider: " . $data->providerTransactionId . "\n";
+            echo 'ID Transaction Provider: ' . $data->providerTransactionId . "\n";
         }
-        
+
         if ($data->clientReferenceId !== null) {
-            echo "Référence client: " . $data->clientReferenceId . "\n";
+            echo 'Référence client: ' . $data->clientReferenceId . "\n";
         }
-        
+
         if ($data->customerMessage !== null) {
-            echo "Message client: " . $data->customerMessage . "\n";
+            echo 'Message client: ' . $data->customerMessage . "\n";
         }
-        
+
         if ($data->metadata !== null) {
             echo "Métadonnées:\n";
             foreach ($data->metadata as $key => $value) {
-                echo "  - " . $key . ": " . (is_array($value) ? json_encode($value) : $value) . "\n";
+                echo '  - ' . $key . ': ' . (is_array($value) ? json_encode($value) : $value) . "\n";
             }
         }
-        
+
         if ($data->failureReason !== null) {
             echo "❌ Échec:\n";
-            echo "Code: " . $data->failureReason->failureCode . "\n";
-            echo "Message: " . $data->failureReason->failureMessage . "\n";
+            echo 'Code: ' . $data->failureReason->failureCode . "\n";
+            echo 'Message: ' . $data->failureReason->failureMessage . "\n";
         }
     }
 } else {
     echo "❌ Dépôt non trouvé\n";
 }
 
-// 4. Si erreur d'authentification ou autre
 if ($response->hasFailureReason()) {
     $failure = $response->getFailureReason();
-    echo "❌ Erreur: " . $failure->failureCode . "\n";
-    echo "Message: " . $failure->failureMessage . "\n";
+    echo '❌ Erreur: ' . $failure->failureCode . "\n";
+    echo 'Message: ' . $failure->failureMessage . "\n";
 }
 ```
 
-### Exemple avec traitement des statuts
+### Exemple sans Builder (manuel)
 
 ```php
 <?php
@@ -343,9 +337,8 @@ declare(strict_types=1);
 
 require './vendor/autoload.php';
 
-use AndyDefer\PhpPawapay\PawapayClient;
 use AndyDefer\PhpPawapay\Enums\PawaPayBaseUrl;
-use AndyDefer\PhpPawapay\Enums\DepositStatus;
+use AndyDefer\PhpPawapay\PawapayClient;
 
 $client = new PawapayClient(
     apiToken: 'your-api-token-here',
@@ -353,45 +346,20 @@ $client = new PawapayClient(
 );
 
 $depositId = '8917c345-4791-4285-a416-62f24b6982db';
-$response = $client->getDeposit($depositId);
+$response = $client->checkDepositStatus($depositId);
 
 if ($response->isFound()) {
     $data = $response->getDepositData();
     if ($data !== null) {
-        $status = $data->status;
-        
-        if ($status->isCompleted()) {
-            echo "✅ Dépôt terminé avec succès !\n";
-        } elseif ($status->isPending()) {
-            echo "⏳ Dépôt en cours de traitement...\n";
-            echo "Statut: " . $status->value . "\n";
-        } elseif ($status->isFailed() || $status->isRejected()) {
-            echo "❌ Dépôt échoué\n";
-            if ($data->failureReason !== null) {
-                echo "Code: " . $data->failureReason->failureCode . "\n";
-                echo "Message: " . $data->failureReason->failureMessage . "\n";
-            }
-        } else {
-            echo "Statut: " . $status->value . "\n";
-        }
+        echo "✅ Dépôt trouvé !\n";
+        echo 'ID: ' . $data->depositId . "\n";
+        echo 'Statut: ' . $data->status->value . "\n";
+        echo 'Montant: ' . $data->amount . ' ' . $data->currency->value . "\n";
+        echo 'Pays: ' . $data->country->getName() . "\n";
     }
-} elseif ($response->isNotFound()) {
+} else {
     echo "❌ Dépôt non trouvé\n";
 }
-
-if ($response->hasFailureReason()) {
-    $failure = $response->getFailureReason();
-    echo "❌ Erreur API: " . $failure->failureCode . "\n";
-    echo "Message: " . $failure->failureMessage . "\n";
-}
-```
-
-### Exemple avec cURL
-
-```bash
-curl -X GET "https://api.sandbox.pawapay.io/v2/deposits/8917c345-4791-4285-a416-62f24b6982db" \
-  -H "Authorization: Bearer your-api-token" \
-  -H "Accept: application/json"
 ```
 
 ---
@@ -408,7 +376,7 @@ curl -X GET "https://api.sandbox.pawapay.io/v2/deposits/8917c345-4791-4285-a416-
 | `REJECTED` | Dépôt rejeté | ✅ |
 | `DUPLICATE_IGNORED` | Dépôt dupliqué ignoré | ✅ |
 
-### Méthodes utilitaires
+### Méthodes utilitaires sur DepositStatus
 
 ```php
 $status = $data->status;
@@ -425,14 +393,40 @@ $status->isFinal();          // COMPLETED, FAILED, REJECTED
 
 ---
 
-## 🔧 Codes d'erreur
+## 🧪 Tests
 
-| Code | Description |
-|------|-------------|
-| `AUTHENTICATION_ERROR` | Token API invalide |
-| `AUTHORISATION_ERROR` | Token non autorisé pour cet endpoint |
-| `UNKNOWN_ERROR` | Erreur inconnue du serveur |
-| `PAYMENT_NOT_APPROVED` | Le client n'a pas approuvé le paiement |
+```bash
+./vendor/bin/phpunit --filter CheckDepositStatusTest
+```
+
+### Exemple de test
+
+```php
+public function test_check_deposit_status_found_completed_rdc_usd(): void
+{
+    $this->client->addDepositFoundResponse([
+        'depositId' => '8917c345-4791-4285-a416-62f24b6982db',
+        'status' => 'COMPLETED',
+        'amount' => '25.50',
+        'currency' => 'USD',
+        'country' => 'COD',
+        'payer' => [
+            'type' => 'MMO',
+            'accountDetails' => [
+                'phoneNumber' => '243812345678',
+                'provider' => 'VODACOM_MPESA_COD',
+            ],
+        ],
+    ]);
+
+    $response = $this->client->checkDepositStatus('8917c345-4791-4285-a416-62f24b6982db');
+
+    $this->assertTrue($response->isFound());
+    $this->assertSame(DepositStatus::COMPLETED, $data->status);
+    $this->assertSame('25.50', $data->amount);
+    $this->assertSame(Currency::USD, $data->currency);
+}
+```
 
 ---
 
