@@ -21,7 +21,7 @@
     ],
     "require": {
         "php": "^8.2",
-        "andydefer/php-client": "^0.5.0",
+        "andydefer/php-client": "^0.5.1",
         "ramsey/uuid": "^4.9",
         "andydefer/php-services": "^1.5.3"
     },
