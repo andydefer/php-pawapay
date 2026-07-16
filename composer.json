@@ -21,8 +21,9 @@
     ],
     "require": {
         "php": "^8.2",
-        "andydefer/php-client": "^0.4.0",
-        "ramsey/uuid": "^4.9"
+        "andydefer/php-client": "^0.5.0",
+        "ramsey/uuid": "^4.9",
+        "andydefer/php-services": "^1.5.3"
     },
     "require-dev": {
         "larastan/larastan": "^3.8",
