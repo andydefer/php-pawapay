@@ -8,6 +8,11 @@
             "AndyDefer\\PhpPawapay\\": "src/"
         }
     },
+    "autoload-dev": {
+        "psr-4": {
+            "AndyDefer\\PhpPawapay\\Tests\\": "tests/"
+        }
+    },
     "authors": [
         {
             "name": "Andy Kani",
@@ -16,10 +21,8 @@
     ],
     "require": {
         "php": "^8.2",
-        "andydefer/laravel-actions": "^2.4.6",
-        "andydefer/laravel-logger": "^3.8.1",
-        "andydefer/domain-structures": "^1.21.1",
-        "guzzlehttp/guzzle": "^7.11"
+        "andydefer/php-client": "^0.3.0",
+        "ramsey/uuid": "^4.9"
     },
     "require-dev": {
         "larastan/larastan": "^3.8",
@@ -27,6 +30,7 @@
         "phpunit/phpunit": "^12.5",
         "rector/rector": "*",
         "symfony/var-dumper": "^7.0",
-        "vimeo/psalm": "^6.14"
+        "vimeo/psalm": "^6.14",
+        "guzzlehttp/guzzle": "^7.8"
     }
 }

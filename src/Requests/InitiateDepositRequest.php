@@ -4,102 +4,79 @@ declare(strict_types=1);
 
 namespace AndyDefer\PhpPawapay\Requests;
 
-use AndyDefer\DomainStructures\Abstracts\AbstractValueObject;
-use AndyDefer\PhpPawapay\Enums\Currency;
-use AndyDefer\PhpPawapay\ValueObjects\AmountVO;
+use AndyDefer\PhpClient\Abstracts\Request;
+use AndyDefer\PhpClient\Enums\ContentType;
+use AndyDefer\PhpClient\Enums\HttpMethod;
+use AndyDefer\PhpClient\ValueObjects\RequestBodyVO;
+use AndyDefer\PhpClient\ValueObjects\UrlVO;
+use AndyDefer\PhpPawapay\Enums\Endpoint;
+use AndyDefer\PhpPawapay\Enums\PawaPayBaseUrl;
+use AndyDefer\PhpPawapay\Graphs\AccountDetailsGraph;
+use AndyDefer\PhpPawapay\Graphs\PayerGraph;
+use AndyDefer\PhpPawapay\Structures\InitiateDepositStruct;
 use AndyDefer\PhpPawapay\ValueObjects\InitiateDepositVO;
-use AndyDefer\PhpPawapay\ValueObjects\MessageVO;
-use AndyDefer\PhpPawapay\ValueObjects\MetadataVO;
-use AndyDefer\PhpPawapay\ValueObjects\PayerVO;
-use AndyDefer\PhpPawapay\ValueObjects\PreAuthorisationCodeVO;
-use AndyDefer\PhpPawapay\ValueObjects\ReferenceVO;
-use AndyDefer\PhpPawapay\ValueObjects\UuidVO;
 
-final class InitiateDepositRequest extends BaseRequest
+final class InitiateDepositRequest extends Request
 {
-    private UuidVO $depositId;
+    private InitiateDepositVO $deposit;
 
-    private PayerVO $payer;
+    private PawaPayBaseUrl $baseUrl;
 
-    private AmountVO $amount;
-
-    private Currency $currency;
-
-    private ?PreAuthorisationCodeVO $preAuthorisationCode = null;
-
-    private ?ReferenceVO $clientReferenceId = null;
-
-    private ?MessageVO $customerMessage = null;
-
-    private ?MetadataVO $metadata = null;
-
-    public function setDepositId(UuidVO $depositId): self
+    public function __construct(InitiateDepositVO $deposit, PawaPayBaseUrl $baseUrl = PawaPayBaseUrl::SANDBOX)
     {
-        $this->depositId = $depositId;
+        $this->deposit = $deposit;
+        $this->baseUrl = $baseUrl;
+        parent::__construct();
+    }
+
+    /**
+     * Set the base URL for the request.
+     */
+    public function setBaseUrl(PawaPayBaseUrl $baseUrl): self
+    {
+        $this->baseUrl = $baseUrl;
 
         return $this;
     }
 
-    public function setPayer(PayerVO $payer): self
+    protected function setMethod(): HttpMethod
     {
-        $this->payer = $payer;
-
-        return $this;
+        return HttpMethod::POST;
     }
 
-    public function setAmount(AmountVO $amount): self
+    protected function setUrl(): UrlVO
     {
-        $this->amount = $amount;
-
-        return $this;
+        return new UrlVO($this->baseUrl->value.ltrim(Endpoint::DEPOSITS_INITIATE->value, '/'));
     }
 
-    public function setCurrency(Currency $currency): self
+    protected function setBody(): RequestBodyVO
     {
-        $this->currency = $currency;
-
-        return $this;
-    }
-
-    public function setPreAuthorisationCode(?PreAuthorisationCodeVO $preAuthorisationCode): self
-    {
-        $this->preAuthorisationCode = $preAuthorisationCode;
-
-        return $this;
-    }
-
-    public function setClientReferenceId(?ReferenceVO $clientReferenceId): self
-    {
-        $this->clientReferenceId = $clientReferenceId;
-
-        return $this;
-    }
-
-    public function setCustomerMessage(?MessageVO $customerMessage): self
-    {
-        $this->customerMessage = $customerMessage;
-
-        return $this;
-    }
-
-    public function setMetadata(?MetadataVO $metadata): self
-    {
-        $this->metadata = $metadata;
-
-        return $this;
-    }
-
-    protected function setBody(): AbstractValueObject
-    {
-        return new InitiateDepositVO(
-            $this->depositId,
-            $this->payer,
-            $this->amount,
-            $this->currency,
-            $this->preAuthorisationCode,
-            $this->clientReferenceId,
-            $this->customerMessage,
-            $this->metadata
+        $accountDetails = new AccountDetailsGraph(
+            phoneNumber: $this->deposit->payer->accountDetails->phoneNumber->getValue(),
+            provider: $this->deposit->payer->accountDetails->provider,
         );
+
+        $payer = new PayerGraph(
+            type: $this->deposit->payer->type,
+            accountDetails: $accountDetails,
+        );
+
+        $metadata = null;
+        if ($this->deposit->metadata !== null && $this->deposit->metadata->getValue() !== null) {
+            $metadata = $this->deposit->metadata->getValue()->toArray();
+        }
+
+        $struct = new InitiateDepositStruct(
+            depositId: $this->deposit->depositId->getValue(),
+            payer: $payer,
+            amount: (string) $this->deposit->amount->getValue(),
+            currency: $this->deposit->currency,
+            preAuthorisationCode: $this->deposit->preAuthorisationCode?->getValue(),
+            clientReferenceId: $this->deposit->clientReferenceId?->getValue(),
+            customerMessage: $this->deposit->customerMessage?->getValue(),
+            metadata: $metadata,
+        );
+
+        return new RequestBodyVO($struct, ContentType::JSON);
     }
 }
