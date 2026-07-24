@@ -25,7 +25,7 @@ final class InitiateDepositBuilderTest extends TestCase
 
         $this->assertInstanceOf(InitiateDepositVO::class, $deposit);
         $this->assertSame('243812345678', $deposit->payer->accountDetails->phoneNumber->getValue());
-        $this->assertSame('25.5', $deposit->amount->getValue());
+        $this->assertSame('25.50', $deposit->amount->getValue());
         $this->assertSame(Currency::USD, $deposit->currency);
         $this->assertSame(Provider::VODACOM_MPESA_COD, $deposit->payer->accountDetails->provider);
         $this->assertSame(PayerType::MMO, $deposit->payer->type);
@@ -40,7 +40,7 @@ final class InitiateDepositBuilderTest extends TestCase
 
         $this->assertInstanceOf(InitiateDepositVO::class, $deposit);
         $this->assertSame('243812345678', $deposit->payer->accountDetails->phoneNumber->getValue());
-        $this->assertSame('25.5', $deposit->amount->getValue());
+        $this->assertSame('25.50', $deposit->amount->getValue());
         $this->assertSame(Currency::ZMW, $deposit->currency);
         $this->assertSame(Provider::MTN_MOMO_ZMB, $deposit->payer->accountDetails->provider);
         $this->assertSame(PayerType::MMO, $deposit->payer->type);
@@ -167,7 +167,7 @@ final class InitiateDepositBuilderTest extends TestCase
         $this->assertSame(PayerType::MMO, $deposit->payer->type);
         $this->assertSame('243812345678', $deposit->payer->accountDetails->phoneNumber->getValue());
         $this->assertSame(Provider::VODACOM_MPESA_COD, $deposit->payer->accountDetails->provider);
-        $this->assertSame('25.5', $deposit->amount->getValue());
+        $this->assertSame('25.50', $deposit->amount->getValue());
         $this->assertSame(Currency::USD, $deposit->currency);
         $this->assertSame('REF-RDC-123456', $deposit->clientReferenceId->getValue());
         $this->assertSame('payment for order rdc', $deposit->customerMessage->getValue());
