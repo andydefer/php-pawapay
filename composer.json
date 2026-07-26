@@ -23,7 +23,7 @@
         "php": "^8.2",
         "andydefer/php-client": "^0.6.1",
         "ramsey/uuid": "^4.9",
-        "andydefer/php-services": "^1.5.11"
+        "andydefer/php-services": "^1.6.0"
     },
     "require-dev": {
         "larastan/larastan": "^3.8",
