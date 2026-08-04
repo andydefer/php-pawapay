@@ -22,7 +22,7 @@
     "require": {
         "php": "^8.2",
         "ramsey/uuid": "^4.9",
-        "andydefer/php-services": "^1.6.1"
+        "andydefer/php-services": "^1.6.2"
     },
     "require-dev": {
         "larastan/larastan": "^3.8",
