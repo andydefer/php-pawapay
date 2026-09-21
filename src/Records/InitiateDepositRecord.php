@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AndyDefer\PhpPawapay\Records;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
+use AndyDefer\DomainStructures\Utils\StrictAssociative;
 use AndyDefer\PhpPawapay\Enums\Currency;
 use AndyDefer\PhpPawapay\ValueObjects\AmountVO;
 use AndyDefer\PhpPawapay\ValueObjects\ClientReferenceIdVO;
@@ -24,5 +25,6 @@ final class InitiateDepositRecord extends AbstractRecord
         public readonly ?ClientReferenceIdVO $clientReferenceId = null,
         public readonly ?CustomerMessageVO $customerMessage = null,
         public readonly ?MetadataVO $metadata = null,
+        public readonly ?StrictAssociative $data = null,
     ) {}
 }

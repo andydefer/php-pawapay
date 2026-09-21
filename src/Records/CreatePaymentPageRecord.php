@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AndyDefer\PhpPawapay\Records;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
+use AndyDefer\DomainStructures\Utils\StrictAssociative;
 use AndyDefer\PhpClient\ValueObjects\UrlVO;
 use AndyDefer\PhpPawapay\Enums\Country;
 use AndyDefer\PhpPawapay\Enums\Language;
@@ -25,5 +26,6 @@ final class CreatePaymentPageRecord extends AbstractRecord
         public readonly Country $country,
         public readonly ?CustomerMessageVO $customerMessage = null,
         public readonly ?MetadataVO $metadata = null,
+        public readonly ?StrictAssociative $data = null,
     ) {}
 }
