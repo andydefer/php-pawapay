@@ -22,7 +22,7 @@ use AndyDefer\PhpPawapay\Structures\PaymentPageStruct;
 use AndyDefer\PhpPawapay\ValueObjects\InitiateDepositVO;
 use AndyDefer\PhpPawapay\ValueObjects\ReferenceVO;
 
-final class PawapayService implements PawapayInterface
+class PawapayService implements PawapayInterface
 {
     public function __construct(
         private readonly PawapayClientInterface $client,
@@ -30,6 +30,8 @@ final class PawapayService implements PawapayInterface
 
     public function initiateDeposit(InitiateDepositRecord $record): InitiateDepositData
     {
+        $this->beforeInitiateDeposit($record);
+
         $deposit = InitiateDepositVO::from([
             'depositId' => $record->depositId,
             'payer' => $record->payer,
@@ -45,7 +47,7 @@ final class PawapayService implements PawapayInterface
 
         $response = $this->client->initiateDeposit($deposit);
 
-        return InitiateDepositData::from([
+        $data = InitiateDepositData::from([
             'depositId' => $response->getDepositId(),
             'status' => $response->getStatus(),
             'created' => $response->getCreated(),
@@ -55,13 +57,19 @@ final class PawapayService implements PawapayInterface
             'isDuplicateIgnored' => $response->isDuplicateIgnored(),
             'hasFailureReason' => $response->hasFailureReason(),
         ]);
+
+        $this->afterInitiateDeposit($record, $data);
+
+        return $data;
     }
 
     public function checkDepositStatus(CheckDepositStatusRecord $record): CheckDepositStatusData
     {
+        $this->beforeCheckDepositStatus($record);
+
         $response = $this->client->checkDepositStatus($record->depositId->getValue());
 
-        return CheckDepositStatusData::from([
+        $data = CheckDepositStatusData::from([
             'searchStatus' => $response->getSearchStatus(),
             'depositData' => $response->getDepositData(),
             'isFound' => $response->isFound(),
@@ -69,13 +77,19 @@ final class PawapayService implements PawapayInterface
             'failureReason' => $this->failureReasonToData($response->getFailureReason()),
             'hasFailureReason' => $response->hasFailureReason(),
         ]);
+
+        $this->afterCheckDepositStatus($record, $data);
+
+        return $data;
     }
 
     public function resendDepositCallback(ResendDepositCallbackRecord $record): ResendDepositCallbackData
     {
+        $this->beforeResendDepositCallback($record);
+
         $response = $this->client->resendDepositCallback($record->depositId->getValue());
 
-        return ResendDepositCallbackData::from([
+        $data = ResendDepositCallbackData::from([
             'depositId' => $response->getDepositId(),
             'status' => $response->getStatus(),
             'failureReason' => $this->failureReasonToData($response->getFailureReason()),
@@ -83,10 +97,16 @@ final class PawapayService implements PawapayInterface
             'isRejected' => $response->isRejected(),
             'hasFailureReason' => $response->hasFailureReason(),
         ]);
+
+        $this->afterResendDepositCallback($record, $data);
+
+        return $data;
     }
 
     public function createPaymentPage(CreatePaymentPageRecord $record): CreatePaymentPageData
     {
+        $this->beforeCreatePaymentPage($record);
+
         $struct = PaymentPageStruct::from([
             'depositId' => $record->depositId,
             'returnUrl' => $record->returnUrl,
@@ -100,11 +120,15 @@ final class PawapayService implements PawapayInterface
 
         $response = $this->client->createPaymentPage($struct);
 
-        return CreatePaymentPageData::from([
+        $data = CreatePaymentPageData::from([
             'redirectUrl' => $response->getRedirectUrlAsString(),
             'failureReason' => $this->failureReasonToData($response->getFailureReason()),
             'hasFailureReason' => $response->hasFailureReason(),
         ]);
+
+        $this->afterCreatePaymentPage($record, $data);
+
+        return $data;
     }
 
     public static function create(string $apiToken, PawaPayBaseUrl $baseUrl): self
@@ -113,6 +137,30 @@ final class PawapayService implements PawapayInterface
             new PawapayClient($apiToken, $baseUrl),
         );
     }
+
+    // ============================================================
+    // HOOKS
+    // ============================================================
+
+    protected function beforeInitiateDeposit(InitiateDepositRecord $record): void {}
+
+    protected function afterInitiateDeposit(InitiateDepositRecord $record, InitiateDepositData $data): void {}
+
+    protected function beforeCheckDepositStatus(CheckDepositStatusRecord $record): void {}
+
+    protected function afterCheckDepositStatus(CheckDepositStatusRecord $record, CheckDepositStatusData $data): void {}
+
+    protected function beforeResendDepositCallback(ResendDepositCallbackRecord $record): void {}
+
+    protected function afterResendDepositCallback(ResendDepositCallbackRecord $record, ResendDepositCallbackData $data): void {}
+
+    protected function beforeCreatePaymentPage(CreatePaymentPageRecord $record): void {}
+
+    protected function afterCreatePaymentPage(CreatePaymentPageRecord $record, CreatePaymentPageData $data): void {}
+
+    // ============================================================
+    // CONVERSIONS
+    // ============================================================
 
     private function failureReasonToData(?FailureReasonStruct $reason): ?FailureReasonData
     {
