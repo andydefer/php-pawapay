@@ -6,10 +6,11 @@ namespace AndyDefer\PhpPawapay\Responses;
 
 use AndyDefer\PhpClient\Abstracts\Response;
 use AndyDefer\PhpClient\Utils\EmptyStruct;
+use AndyDefer\PhpPawapay\Contracts\Responses\InitiateDepositResponseInterface;
 use AndyDefer\PhpPawapay\Enums\DepositStatus;
 use AndyDefer\PhpPawapay\Structures\FailureReasonStruct;
 
-final class InitiateDepositResponse extends Response
+final class InitiateDepositResponse extends Response implements InitiateDepositResponseInterface
 {
     public function getDepositId(): ?string
     {

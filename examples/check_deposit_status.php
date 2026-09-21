@@ -53,7 +53,7 @@ if ($response->isFound()) {
 
         if ($data->failureReason !== null) {
             echo "❌ Échec:\n";
-            echo 'Code: '.$data->failureReason->failureCode."\n";
+            echo 'Code: '.$data->failureReason->failureCode->value."\n";
             echo 'Message: '.$data->failureReason->failureMessage."\n";
         }
     }
@@ -63,7 +63,7 @@ if ($response->isFound()) {
 
 if ($response->hasFailureReason()) {
     $failure = $response->getFailureReason();
-    echo '❌ Erreur: '.$failure->failureCode."\n";
+    echo '❌ Erreur: '.$failure->failureCode->value."\n";
     echo 'Message: '.$failure->failureMessage."\n";
 }
 

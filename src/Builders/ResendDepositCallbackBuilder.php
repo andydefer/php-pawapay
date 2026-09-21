@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace AndyDefer\PhpPawapay\Builders;
 
+use AndyDefer\PhpPawapay\Contracts\Responses\ResendDepositCallbackResponseInterface;
 use AndyDefer\PhpPawapay\Enums\PawaPayBaseUrl;
 use AndyDefer\PhpPawapay\PawapayClient;
-use AndyDefer\PhpPawapay\Responses\ResendDepositCallbackResponse;
 
 final class ResendDepositCallbackBuilder
 {
@@ -44,7 +44,7 @@ final class ResendDepositCallbackBuilder
         );
     }
 
-    public function execute(): ResendDepositCallbackResponse
+    public function execute(): ResendDepositCallbackResponseInterface
     {
         $client = $this->build();
 

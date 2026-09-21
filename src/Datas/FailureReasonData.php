@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace AndyDefer\PhpPawapay\Structures;
+namespace AndyDefer\PhpPawapay\Datas;
 
-use AndyDefer\PhpClient\Abstracts\Graph;
+use AndyDefer\DomainStructures\Abstracts\AbstractData;
 use AndyDefer\PhpPawapay\Enums\FailureCode;
 
-final class FailureReasonStruct extends Graph
+final class FailureReasonData extends AbstractData
 {
     public function __construct(
         public readonly FailureCode $failureCode,

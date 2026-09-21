@@ -6,10 +6,11 @@ namespace AndyDefer\PhpPawapay\Responses;
 
 use AndyDefer\PhpClient\Abstracts\Response;
 use AndyDefer\PhpClient\Utils\EmptyStruct;
+use AndyDefer\PhpPawapay\Contracts\Responses\ResendDepositCallbackResponseInterface;
 use AndyDefer\PhpPawapay\Enums\ResendCallbackStatus;
 use AndyDefer\PhpPawapay\Structures\FailureReasonStruct;
 
-final class ResendDepositCallbackResponse extends Response
+final class ResendDepositCallbackResponse extends Response implements ResendDepositCallbackResponseInterface
 {
     public function getDepositId(): ?string
     {

@@ -2,8 +2,9 @@
 
 declare(strict_types=1);
 
-namespace AndyDefer\PhpPawapay\Tests\Unit;
+namespace AndyDefer\PhpPawapay\Tests\Unit\PawapayClient;
 
+use AndyDefer\PhpPawapay\Enums\FailureCode;
 use AndyDefer\PhpPawapay\Enums\ResendCallbackStatus;
 use AndyDefer\PhpPawapay\Tests\MockPawapayClient;
 use PHPUnit\Framework\TestCase;
@@ -48,7 +49,7 @@ final class ResendDepositCallbackTest extends TestCase
             'depositId' => $depositId,
             'status' => 'REJECTED',
             'failureReason' => [
-                'failureCode' => 'NOT_FOUND',
+                'failureCode' => 'PAYMENT_NOT_APPROVED',
                 'failureMessage' => "Payout with ID {$depositId} not found",
             ],
         ]);
@@ -63,7 +64,7 @@ final class ResendDepositCallbackTest extends TestCase
 
         $failure = $response->getFailureReason();
         $this->assertNotNull($failure);
-        $this->assertSame('NOT_FOUND', $failure->failureCode);
+        $this->assertSame(FailureCode::PAYMENT_NOT_APPROVED, $failure->failureCode);
         $this->assertSame("Payout with ID {$depositId} not found", $failure->failureMessage);
     }
 
@@ -77,7 +78,7 @@ final class ResendDepositCallbackTest extends TestCase
             'depositId' => $depositId,
             'status' => 'REJECTED',
             'failureReason' => [
-                'failureCode' => 'INVALID_STATE',
+                'failureCode' => 'PAYMENT_IN_PROGRESS',
                 'failureMessage' => "Payout with ID {$depositId} has not finished processing",
             ],
         ]);
@@ -92,7 +93,7 @@ final class ResendDepositCallbackTest extends TestCase
 
         $failure = $response->getFailureReason();
         $this->assertNotNull($failure);
-        $this->assertSame('INVALID_STATE', $failure->failureCode);
+        $this->assertSame(FailureCode::PAYMENT_IN_PROGRESS, $failure->failureCode);
         $this->assertSame("Payout with ID {$depositId} has not finished processing", $failure->failureMessage);
     }
 
@@ -113,7 +114,7 @@ final class ResendDepositCallbackTest extends TestCase
 
         $failure = $response->getFailureReason();
         $this->assertNotNull($failure);
-        $this->assertSame('AUTHENTICATION_ERROR', $failure->failureCode);
+        $this->assertSame(FailureCode::AUTHENTICATION_ERROR, $failure->failureCode);
         $this->assertSame('The API token in the request is invalid.', $failure->failureMessage);
     }
 
@@ -134,7 +135,7 @@ final class ResendDepositCallbackTest extends TestCase
 
         $failure = $response->getFailureReason();
         $this->assertNotNull($failure);
-        $this->assertSame('AUTHORISATION_ERROR', $failure->failureCode);
+        $this->assertSame(FailureCode::AUTHORISATION_ERROR, $failure->failureCode);
         $this->assertSame('The API token in the request is not authorised for this endpoint.', $failure->failureMessage);
     }
 
@@ -155,7 +156,7 @@ final class ResendDepositCallbackTest extends TestCase
 
         $failure = $response->getFailureReason();
         $this->assertNotNull($failure);
-        $this->assertSame('UNKNOWN_ERROR', $failure->failureCode);
+        $this->assertSame(FailureCode::UNKNOWN_ERROR, $failure->failureCode);
         $this->assertSame('Unable to process request due to an unknown problem.', $failure->failureMessage);
     }
 }

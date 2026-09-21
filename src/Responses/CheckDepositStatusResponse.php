@@ -7,11 +7,12 @@ namespace AndyDefer\PhpPawapay\Responses;
 use AndyDefer\DomainStructures\Normalizers\NormalizerChain;
 use AndyDefer\PhpClient\Abstracts\Response;
 use AndyDefer\PhpClient\Utils\EmptyStruct;
+use AndyDefer\PhpPawapay\Contracts\Responses\CheckDepositStatusResponseInterface;
 use AndyDefer\PhpPawapay\Enums\DepositSearchStatus;
 use AndyDefer\PhpPawapay\Structures\DepositDataStruct;
 use AndyDefer\PhpPawapay\Structures\FailureReasonStruct;
 
-final class CheckDepositStatusResponse extends Response
+final class CheckDepositStatusResponse extends Response implements CheckDepositStatusResponseInterface
 {
     public function getSearchStatus(): DepositSearchStatus
     {

@@ -2,21 +2,20 @@
 
 declare(strict_types=1);
 
-namespace AndyDefer\PhpPawapay\Structures;
+namespace AndyDefer\PhpPawapay\Datas;
 
-use AndyDefer\PhpClient\Abstracts\Struct;
+use AndyDefer\DomainStructures\Abstracts\AbstractData;
+use AndyDefer\DomainStructures\Utils\StrictAssociative;
 use AndyDefer\PhpPawapay\Enums\Country;
 use AndyDefer\PhpPawapay\Enums\Currency;
 use AndyDefer\PhpPawapay\Enums\DepositStatus;
-use AndyDefer\PhpPawapay\Graphs\PayerGraph;
 use AndyDefer\PhpPawapay\ValueObjects\AmountVO;
 use AndyDefer\PhpPawapay\ValueObjects\ClientReferenceIdVO;
 use AndyDefer\PhpPawapay\ValueObjects\CustomerMessageVO;
-use AndyDefer\PhpPawapay\ValueObjects\MetadataVO;
 use AndyDefer\PhpPawapay\ValueObjects\UuidVO;
 use AndyDefer\PhpVo\ValueObjects\DateTimeZuluVO;
 
-final class DepositDataStruct extends Struct
+final class DepositDataData extends AbstractData
 {
     public function __construct(
         public readonly UuidVO $depositId,
@@ -24,12 +23,12 @@ final class DepositDataStruct extends Struct
         public readonly AmountVO $amount,
         public readonly ?Currency $currency = null,
         public readonly ?Country $country = null,
-        public readonly ?PayerGraph $payer = null,
+        public readonly ?PayerData $payer = null,
         public readonly ?ClientReferenceIdVO $clientReferenceId = null,
-        public readonly ?string $providerTransactionId = null,
         public readonly ?CustomerMessageVO $customerMessage = null,
         public readonly ?DateTimeZuluVO $created = null,
-        public readonly ?MetadataVO $metadata = null,
-        public readonly ?FailureReasonStruct $failureReason = null,
+        public readonly ?string $providerTransactionId = null,
+        public readonly ?StrictAssociative $metadata = null,
+        public readonly ?FailureReasonData $failureReason = null,
     ) {}
 }

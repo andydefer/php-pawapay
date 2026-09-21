@@ -7,6 +7,7 @@ namespace AndyDefer\PhpPawapay\Tests\Unit\PawapayClient;
 use AndyDefer\PhpPawapay\Enums\Country;
 use AndyDefer\PhpPawapay\Enums\Currency;
 use AndyDefer\PhpPawapay\Enums\DepositStatus;
+use AndyDefer\PhpPawapay\Enums\FailureCode;
 use AndyDefer\PhpPawapay\Enums\Provider;
 use AndyDefer\PhpPawapay\Tests\MockPawapayClient;
 use PHPUnit\Framework\TestCase;
@@ -38,7 +39,7 @@ final class CheckDepositStatusTest extends TestCase
                 ],
             ],
             'clientReferenceId' => 'REF-RDC-123456',
-            'customerMessage' => 'Payment for order RDC-123456',
+            'customerMessage' => 'Payment for RDC-123456',
             'created' => '2020-10-19T08:17:01Z',
             'providerTransactionId' => '12356789',
         ]);
@@ -50,16 +51,16 @@ final class CheckDepositStatusTest extends TestCase
 
         $data = $response->getDepositData();
         $this->assertNotNull($data);
-        $this->assertSame('8917c345-4791-4285-a416-62f24b6982db', $data->depositId);
+        $this->assertSame('8917c345-4791-4285-a416-62f24b6982db', $data->depositId->getValue());
         $this->assertSame(DepositStatus::COMPLETED, $data->status);
-        $this->assertSame('25.50', $data->amount);
+        $this->assertSame('25.50', $data->amount->getValue());
         $this->assertSame(Currency::USD, $data->currency);
         $this->assertSame(Country::COD, $data->country);
         $this->assertSame(Provider::VODACOM_MPESA_COD, $data->payer->accountDetails->provider);
         $this->assertSame('243812345678', $data->payer->accountDetails->phoneNumber->getValue());
-        $this->assertSame('REF-RDC-123456', $data->clientReferenceId);
-        $this->assertSame('Payment for order RDC-123456', $data->customerMessage);
-        $this->assertSame('2020-10-19T08:17:01Z', $data->created);
+        $this->assertSame('REF-RDC-123456', $data->clientReferenceId->getValue());
+        $this->assertSame('payment for rdc 123456', $data->customerMessage->getValue());
+        $this->assertSame('2020-10-19T08:17:01Z', $data->created->getValue());
         $this->assertSame('12356789', $data->providerTransactionId);
         $this->assertNull($data->failureReason);
     }
@@ -197,7 +198,7 @@ final class CheckDepositStatusTest extends TestCase
         $this->assertSame(Provider::VODACOM_MPESA_COD, $data->payer->accountDetails->provider);
         $this->assertSame('243812345678', $data->payer->accountDetails->phoneNumber->getValue());
         $this->assertNotNull($data->failureReason);
-        $this->assertSame('PAYMENT_NOT_APPROVED', $data->failureReason->failureCode);
+        $this->assertSame(FailureCode::PAYMENT_NOT_APPROVED, $data->failureReason->failureCode);
         $this->assertSame('The customer did not approve the authorisation for this payment', $data->failureReason->failureMessage);
     }
 
@@ -229,7 +230,7 @@ final class CheckDepositStatusTest extends TestCase
 
         $failure = $response->getFailureReason();
         $this->assertNotNull($failure);
-        $this->assertSame('AUTHENTICATION_ERROR', $failure->failureCode);
+        $this->assertSame(FailureCode::AUTHENTICATION_ERROR, $failure->failureCode);
         $this->assertSame('The API token in the request is invalid.', $failure->failureMessage);
     }
 
@@ -247,7 +248,7 @@ final class CheckDepositStatusTest extends TestCase
 
         $failure = $response->getFailureReason();
         $this->assertNotNull($failure);
-        $this->assertSame('AUTHORISATION_ERROR', $failure->failureCode);
+        $this->assertSame(FailureCode::AUTHORISATION_ERROR, $failure->failureCode);
         $this->assertSame('The API token in the request is not authorised for this endpoint.', $failure->failureMessage);
     }
 
@@ -265,7 +266,7 @@ final class CheckDepositStatusTest extends TestCase
 
         $failure = $response->getFailureReason();
         $this->assertNotNull($failure);
-        $this->assertSame('UNKNOWN_ERROR', $failure->failureCode);
+        $this->assertSame(FailureCode::UNKNOWN_ERROR, $failure->failureCode);
         $this->assertSame('Unable to process request due to an unknown problem.', $failure->failureMessage);
     }
 }

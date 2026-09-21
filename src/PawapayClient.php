@@ -5,7 +5,13 @@ declare(strict_types=1);
 namespace AndyDefer\PhpPawapay;
 
 use AndyDefer\PhpClient\Clients\ClientService;
+use AndyDefer\PhpClient\Contracts\ClientInterface;
 use AndyDefer\PhpClient\Enums\ContentType;
+use AndyDefer\PhpPawapay\Contracts\PawapayClientInterface;
+use AndyDefer\PhpPawapay\Contracts\Responses\CheckDepositStatusResponseInterface;
+use AndyDefer\PhpPawapay\Contracts\Responses\CreatePaymentPageResponseInterface;
+use AndyDefer\PhpPawapay\Contracts\Responses\InitiateDepositResponseInterface;
+use AndyDefer\PhpPawapay\Contracts\Responses\ResendDepositCallbackResponseInterface;
 use AndyDefer\PhpPawapay\Enums\PawaPayBaseUrl;
 use AndyDefer\PhpPawapay\Requests\CheckDepositStatusRequest;
 use AndyDefer\PhpPawapay\Requests\CreatePaymentPageRequest;
@@ -18,7 +24,7 @@ use AndyDefer\PhpPawapay\Responses\ResendDepositCallbackResponse;
 use AndyDefer\PhpPawapay\Structures\PaymentPageStruct;
 use AndyDefer\PhpPawapay\ValueObjects\InitiateDepositVO;
 
-class PawapayClient
+class PawapayClient implements PawapayClientInterface
 {
     private ClientService $client;
 
@@ -26,7 +32,7 @@ class PawapayClient
 
     private PawaPayBaseUrl $baseUrl;
 
-    public function __construct(string $apiToken, PawaPayBaseUrl $baseUrl = PawaPayBaseUrl::SANDBOX, ?ClientService $client = null)
+    public function __construct(string $apiToken, PawaPayBaseUrl $baseUrl = PawaPayBaseUrl::SANDBOX, ?ClientInterface $client = null)
     {
         $this->apiToken = $apiToken;
         $this->baseUrl = $baseUrl;
@@ -40,7 +46,7 @@ class PawapayClient
         return $this;
     }
 
-    public function initiateDeposit(InitiateDepositVO $deposit): InitiateDepositResponse
+    public function initiateDeposit(InitiateDepositVO $deposit): InitiateDepositResponseInterface
     {
         $request = new InitiateDepositRequest($deposit, $this->baseUrl);
 
@@ -61,7 +67,7 @@ class PawapayClient
         );
     }
 
-    public function checkDepositStatus(string $depositId): CheckDepositStatusResponse
+    public function checkDepositStatus(string $depositId): CheckDepositStatusResponseInterface
     {
         $request = new CheckDepositStatusRequest($depositId, $this->baseUrl);
 
@@ -81,7 +87,7 @@ class PawapayClient
         );
     }
 
-    public function resendDepositCallback(string $depositId): ResendDepositCallbackResponse
+    public function resendDepositCallback(string $depositId): ResendDepositCallbackResponseInterface
     {
         $request = new ResendDepositCallbackRequest($depositId, $this->baseUrl);
 
@@ -102,7 +108,7 @@ class PawapayClient
         );
     }
 
-    public function createPaymentPage(PaymentPageStruct $paymentPage): CreatePaymentPageResponse
+    public function createPaymentPage(PaymentPageStruct $paymentPage): CreatePaymentPageResponseInterface
     {
         $request = new CreatePaymentPageRequest($paymentPage, $this->baseUrl);
 

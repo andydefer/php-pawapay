@@ -8,6 +8,7 @@ use AndyDefer\DomainStructures\Utils\StrictDataObject;
 use AndyDefer\PhpClient\ValueObjects\UrlVO;
 use AndyDefer\PhpPawapay\Enums\Country;
 use AndyDefer\PhpPawapay\Enums\Currency;
+use AndyDefer\PhpPawapay\Enums\FailureCode;
 use AndyDefer\PhpPawapay\Enums\Language;
 use AndyDefer\PhpPawapay\Graphs\AmountDetailsGraph;
 use AndyDefer\PhpPawapay\Structures\PaymentPageStruct;
@@ -61,8 +62,6 @@ final class CreatePaymentPageTest extends TestCase
 
     public function test_create_payment_page_success(): void
     {
-        $depositId = '9b724dbf-32a7-4e63-96bb-59a4747e43ca';
-
         $this->client->addSuccessResponse([
             'redirectUrl' => 'https://sandbox.paywith.pawapay.io/v2?token=xxx',
         ]);
@@ -96,7 +95,7 @@ final class CreatePaymentPageTest extends TestCase
 
         $failure = $response->getFailureReason();
         $this->assertNotNull($failure);
-        $this->assertSame('PROVIDER_TEMPORARILY_UNAVAILABLE', $failure->failureCode);
+        $this->assertSame(FailureCode::PROVIDER_TEMPORARILY_UNAVAILABLE, $failure->failureCode);
     }
 
     public function test_create_payment_page_rejected_invalid_phone_number(): void
@@ -116,7 +115,7 @@ final class CreatePaymentPageTest extends TestCase
 
         $failure = $response->getFailureReason();
         $this->assertNotNull($failure);
-        $this->assertSame('INVALID_PHONE_NUMBER', $failure->failureCode);
+        $this->assertSame(FailureCode::INVALID_PHONE_NUMBER, $failure->failureCode);
     }
 
     public function test_create_payment_page_rejected_invalid_currency(): void
@@ -136,7 +135,7 @@ final class CreatePaymentPageTest extends TestCase
 
         $failure = $response->getFailureReason();
         $this->assertNotNull($failure);
-        $this->assertSame('INVALID_CURRENCY', $failure->failureCode);
+        $this->assertSame(FailureCode::INVALID_CURRENCY, $failure->failureCode);
     }
 
     public function test_create_payment_page_rejected_invalid_amount(): void
@@ -156,7 +155,7 @@ final class CreatePaymentPageTest extends TestCase
 
         $failure = $response->getFailureReason();
         $this->assertNotNull($failure);
-        $this->assertSame('INVALID_AMOUNT', $failure->failureCode);
+        $this->assertSame(FailureCode::INVALID_AMOUNT, $failure->failureCode);
     }
 
     public function test_create_payment_page_authentication_error(): void
@@ -172,7 +171,7 @@ final class CreatePaymentPageTest extends TestCase
 
         $failure = $response->getFailureReason();
         $this->assertNotNull($failure);
-        $this->assertSame('AUTHENTICATION_ERROR', $failure->failureCode);
+        $this->assertSame(FailureCode::AUTHENTICATION_ERROR, $failure->failureCode);
         $this->assertSame('The API token in the request is invalid.', $failure->failureMessage);
     }
 
@@ -189,7 +188,7 @@ final class CreatePaymentPageTest extends TestCase
 
         $failure = $response->getFailureReason();
         $this->assertNotNull($failure);
-        $this->assertSame('AUTHORISATION_ERROR', $failure->failureCode);
+        $this->assertSame(FailureCode::AUTHORISATION_ERROR, $failure->failureCode);
         $this->assertSame('The API token in the request is not authorised for this endpoint.', $failure->failureMessage);
     }
 
@@ -206,7 +205,7 @@ final class CreatePaymentPageTest extends TestCase
 
         $failure = $response->getFailureReason();
         $this->assertNotNull($failure);
-        $this->assertSame('UNKNOWN_ERROR', $failure->failureCode);
+        $this->assertSame(FailureCode::UNKNOWN_ERROR, $failure->failureCode);
         $this->assertSame('Unable to process request due to an unknown problem.', $failure->failureMessage);
     }
 }

@@ -12,16 +12,20 @@ Pawapay est une plateforme de paiement qui permet d'accepter des paiements via M
 
 ### Ce que fait ce SDK
 
-Ce SDK transforme les appels HTTP bruts vers l'API Pawapay en **objets PHP typés, validés et documentés**.
+Ce SDK transforme les appels HTTP bruts vers l'API Pawapay en **objets PHP typés, validés et documentés**. Il expose deux niveaux d'utilisation :
+
+- **`PawapayClient`** — client HTTP bas niveau, expose les `Response` typées du SDK.
+- **`PawapayService`** — façade applicative haut niveau, prend des `Record` et retourne des `Data`. C'est ce que vous utilisez dans votre code métier.
 
 ### Pourquoi l'utiliser ?
 
 | Sans SDK | Avec SDK |
 |----------|----------|
-| `json_decode()` manuel | Objets PHP typés (`DepositDataStruct`) |
-| Validation manuelle | Value Objects (`PhoneNumberVO`, `UuidVO`) |
-| String magiques | Enums (`Provider::MTN_MOMO_ZMB`) |
-| Code répétitif | Builders fluides |
+| `json_decode()` manuel | Objets PHP typés (`DepositDataStruct`, `InitiateDepositData`) |
+| Validation manuelle | Value Objects (`PhoneNumberVO`, `UuidVO`, `AmountVO`) |
+| Strings magiques | Enums (`Provider::MTN_MOMO_ZMB`, `Currency::ZMW`) |
+| Code répétitif | Builders fluides + façade `PawapayService` |
+| Mélange HTTP/métier | Séparation `Record` (entrée) / `Data` (sortie) |
 
 ---
 
@@ -35,7 +39,21 @@ composer require andydefer/php-pawapay
 
 ## ⚙️ Configuration
 
-### Créer le client
+### Via la façade `PawapayService` (recommandé)
+
+```php
+<?php
+
+use AndyDefer\PhpPawapay\Enums\PawaPayBaseUrl;
+use AndyDefer\PhpPawapay\Services\PawapayService;
+
+$service = PawapayService::create(
+    apiToken: 'eyJraWQiOiIxIiwiYWxnIjoiRVMyNTYifQ...',
+    baseUrl: PawaPayBaseUrl::SANDBOX, // ou PRODUCTION
+);
+```
+
+### Via le client bas niveau
 
 ```php
 <?php
@@ -44,14 +62,149 @@ use AndyDefer\PhpPawapay\PawapayClient;
 use AndyDefer\PhpPawapay\Enums\PawaPayBaseUrl;
 
 $client = new PawapayClient(
-    apiToken: 'eyJraWQiOiIxIiwiYWxnIjoiRVMyNTYifQ...',  // Votre token API
-    baseUrl: PawaPayBaseUrl::SANDBOX  // ou PRODUCTION
+    apiToken: 'eyJraWQiOiIxIiwiYWxnIjoiRVMyNTYifQ...',
+    baseUrl: PawaPayBaseUrl::SANDBOX,
 );
 ```
 
 ---
 
-## 💰 1. Initier un dépôt (Initiate Deposit)
+## 🎯 `PawapayService` — façade haut niveau
+
+`PawapayService` implémente `PawapayInterface`. C'est la couche que vous utilisez dans votre métier : vous lui passez un `Record`, il vous renvoie une `Data`.
+
+### API
+
+| Méthode | Entrée | Sortie |
+|---------|--------|--------|
+| `initiateDeposit` | `InitiateDepositRecord` | `InitiateDepositData` |
+| `checkDepositStatus` | `CheckDepositStatusRecord` | `CheckDepositStatusData` |
+| `resendDepositCallback` | `ResendDepositCallbackRecord` | `ResendDepositCallbackData` |
+| `createPaymentPage` | `CreatePaymentPageRecord` | `CreatePaymentPageData` |
+
+### Initier un dépôt via le service
+
+```php
+<?php
+
+use AndyDefer\PhpPawapay\Enums\Currency;
+use AndyDefer\PhpPawapay\Enums\PayerType;
+use AndyDefer\PhpPawapay\Enums\Provider;
+use AndyDefer\PhpPawapay\Records\InitiateDepositRecord;
+use AndyDefer\PhpPawapay\ValueObjects\AccountDetailsVO;
+use AndyDefer\PhpPawapay\ValueObjects\AmountVO;
+use AndyDefer\PhpPawapay\ValueObjects\CustomerMessageVO;
+use AndyDefer\PhpPawapay\ValueObjects\PayerVO;
+use AndyDefer\PhpPawapay\ValueObjects\PhoneNumberVO;
+use AndyDefer\PhpPawapay\ValueObjects\UuidVO;
+
+$data = $service->initiateDeposit(
+    InitiateDepositRecord::from([
+        'depositId' => UuidVO::from('f4401bd2-1568-4140-bf2d-eb77d2b2b639'),
+        'payer' => PayerVO::from([
+            'type' => PayerType::MMO,
+            'accountDetails' => AccountDetailsVO::from([
+                'phoneNumber' => PhoneNumberVO::from('260763456789'),
+                'provider' => Provider::MTN_MOMO_ZMB,
+            ]),
+        ]),
+        'amount' => AmountVO::from(15.00),
+        'currency' => Currency::ZMW,
+        'clientReferenceId' => 'INV-123456',
+        'customerMessage' => CustomerMessageVO::from('Payment order 123'),
+    ]),
+);
+
+if ($data->isAccepted) {
+    // Stocker $data->depositId en base
+}
+```
+
+Le service expose les mêmes informations que le client bas niveau, mais sous forme de `Data` immuable :
+
+```php
+$data->depositId;             // ?string
+$data->status;                // DepositStatus
+$data->created;               // ?string
+$data->failureReason;         // ?FailureReasonData
+$data->isAccepted;            // bool
+$data->isRejected;            // bool
+$data->isDuplicateIgnored;    // bool
+$data->hasFailureReason;      // bool
+```
+
+### Vérifier un dépôt
+
+```php
+use AndyDefer\PhpPawapay\Records\CheckDepositStatusRecord;
+
+$data = $service->checkDepositStatus(
+    CheckDepositStatusRecord::from([
+        'depositId' => UuidVO::from('60bd6a3d-177e-4ec2-a65c-d622ede29c99'),
+    ]),
+);
+
+if ($data->isFound) {
+    $status = $data->depositData?->status;
+    if ($status?->isCompleted()) {
+        // Paiement confirmé
+    }
+}
+```
+
+### Renvoyer un callback
+
+```php
+use AndyDefer\PhpPawapay\Records\ResendDepositCallbackRecord;
+
+$data = $service->resendDepositCallback(
+    ResendDepositCallbackRecord::from([
+        'depositId' => UuidVO::from('9b724dbf-32a7-4e63-96bb-59a4747e43ca'),
+    ]),
+);
+
+if ($data->isAccepted) {
+    // Callback renvoyé
+}
+```
+
+### Créer une page de paiement
+
+```php
+use AndyDefer\PhpPawapay\Records\CreatePaymentPageRecord;
+
+$data = $service->createPaymentPage(
+    CreatePaymentPageRecord::from([
+        // ...
+    ]),
+);
+
+if ($data->redirectUrl !== null) {
+    header('Location: ' . $data->redirectUrl);
+    exit;
+}
+```
+
+### Intégration Laravel
+
+Bindez l'interface à l'implémentation dans un ServiceProvider :
+
+```php
+$this->app->singleton(PawapayInterface::class, function () {
+    return PawapayService::create(
+        apiToken: config('pawapay.api_token'),
+        baseUrl: config('pawapay.environment') === 'production'
+            ? PawaPayBaseUrl::PRODUCTION
+            : PawaPayBaseUrl::SANDBOX,
+    );
+});
+```
+
+Puis injectez `PawapayInterface` dans vos contrôleurs, jobs, listeners.
+
+---
+
+## 💰 1. Initier un dépôt (bas niveau)
 
 ### Ce que fait cette route
 
@@ -84,7 +237,7 @@ use AndyDefer\PhpPawapay\Enums\PayerType;
 $depositId = new UuidVO('f4401bd2-1568-4140-bf2d-eb77d2b2b639');
 
 // 2. Numéro de téléphone du client (format international sans le +)
-$phoneNumber = new PhoneNumberVO('260763456789');  // Zambie
+$phoneNumber = new PhoneNumberVO('260763456789'); // Zambie
 
 // 3. Montant
 $amount = new AmountVO(15.00);
@@ -92,12 +245,12 @@ $amount = new AmountVO(15.00);
 // 4. Détails du compte Mobile Money
 $accountDetails = new AccountDetailsVO(
     phoneNumber: $phoneNumber,
-    provider: Provider::MTN_MOMO_ZMB  // MTN MoMo Zambie
+    provider: Provider::MTN_MOMO_ZMB
 );
 
 // 5. Payeur
 $payer = new PayerVO(
-    type: PayerType::MMO,  // Mobile Money Operator
+    type: PayerType::MMO,
     accountDetails: $accountDetails
 );
 
@@ -122,39 +275,31 @@ $response = $client->initiateDeposit($deposit);
 
 ```php
 if ($response->isSuccess()) {
-    // Succès (status 200)
-    
     if ($response->isAccepted()) {
         echo "✅ Dépôt accepté !\n";
-        echo "ID: " . $response->getDepositId() . "\n";       // f4401bd2-1568-...
-        echo "Statut: " . $response->getStatus()->value;      // ACCEPTED
-        echo "Créé: " . $response->getCreated();              // 2020-10-19T11:17:01Z
-    
+        echo "ID: " . $response->getDepositId() . "\n";
+        echo "Statut: " . $response->getStatus()->value;
+        echo "Créé: " . $response->getCreated();
     } elseif ($response->isDuplicateIgnored()) {
         echo "⚠️ Dépôt dupliqué ignoré\n";
     }
-    
 } else {
-    // Échec
-    
     echo "❌ Échec du dépôt\n";
-    echo "Statut: " . $response->getStatus()->value;  // REJECTED
-    
+    echo "Statut: " . $response->getStatus()->value;
+
     if ($response->hasFailureReason()) {
         $failure = $response->getFailureReason();
-        echo "Code: " . $failure->failureCode;        // INVALID_PHONE_NUMBER
-        echo "Message: " . $failure->failureMessage;  // The phone number '2607634'...
+        echo "Code: " . $failure->failureCode;
+        echo "Message: " . $failure->failureMessage;
     }
 }
 ```
 
-### Avec le Builder (recommandé)
-
-Le builder rend le code plus lisible et réduit les erreurs :
+### Avec le Builder (bas niveau, recommandé)
 
 ```php
 $deposit = InitiateDepositBuilder::create()
-    ->withAutoGeneratedDepositId()           // UUID automatique
+    ->withAutoGeneratedDepositId()
     ->withPhoneNumber('260763456789')
     ->withProvider(Provider::MTN_MOMO_ZMB)
     ->withAmount(15.00)
@@ -169,10 +314,6 @@ $deposit = InitiateDepositBuilder::create()
 
 ## 🔍 2. Vérifier le statut d'un dépôt
 
-### Ce que fait cette route
-
-Elle permet de savoir où en est un dépôt : accepté, en cours, terminé ou échoué.
-
 ### Endpoint
 
 ```
@@ -182,8 +323,6 @@ GET /v2/deposits/{depositId}
 ### Utilisation
 
 ```php
-<?php
-
 use AndyDefer\PhpPawapay\Builders\CheckDepositStatusBuilder;
 
 $response = CheckDepositStatusBuilder::create('your-api-token')
@@ -192,9 +331,9 @@ $response = CheckDepositStatusBuilder::create('your-api-token')
 
 if ($response->isFound()) {
     $data = $response->getDepositData();
-    
-    echo "Statut: " . $data->status->value;  // COMPLETED, PROCESSING, FAILED...
-    
+
+    echo "Statut: " . $data->status->value;
+
     if ($data->status->isCompleted()) {
         echo "✅ Le paiement a été confirmé !";
     } elseif ($data->status->isPending()) {
@@ -225,10 +364,6 @@ if ($response->isFound()) {
 
 ## 🔄 3. Renvoyer un callback de dépôt
 
-### Ce que fait cette route
-
-Si votre serveur n'a pas reçu le webhook de confirmation, vous pouvez demander à Pawapay de le renvoyer.
-
 ### Endpoint
 
 ```
@@ -238,8 +373,6 @@ POST /v2/deposits/resend-callback/{depositId}
 ### Utilisation
 
 ```php
-<?php
-
 use AndyDefer\PhpPawapay\Builders\ResendDepositCallbackBuilder;
 
 $response = ResendDepositCallbackBuilder::create('your-api-token')
@@ -251,7 +384,7 @@ if ($response->isAccepted()) {
 } else {
     echo "❌ Échec";
     $failure = $response->getFailureReason();
-    echo "Code: " . $failure->failureCode;   // NOT_FOUND ou INVALID_STATE
+    echo "Code: " . $failure->failureCode;
     echo "Message: " . $failure->failureMessage;
 }
 ```
@@ -259,10 +392,6 @@ if ($response->isAccepted()) {
 ---
 
 ## 📄 4. Créer une page de paiement
-
-### Ce que fait cette route
-
-Elle génère une URL vers une page de paiement Pawapay que vous pouvez rediriger votre client vers.
 
 ### Endpoint
 
@@ -273,8 +402,6 @@ POST /v2/paymentpage
 ### Utilisation
 
 ```php
-<?php
-
 use AndyDefer\PhpPawapay\Builders\CreatePaymentPageBuilder;
 use AndyDefer\PhpPawapay\Enums\Currency;
 use AndyDefer\PhpPawapay\Enums\Country;
@@ -282,7 +409,7 @@ use AndyDefer\PhpPawapay\Enums\Language;
 
 $response = CreatePaymentPageBuilder::create('your-api-token')
     ->withAutoGeneratedDepositId()
-    ->withPhoneNumber('243827833329')           // RDC
+    ->withPhoneNumber('243827833329')
     ->withAmount(24.60)
     ->withCurrency(Currency::USD)
     ->withReturnUrl('https://example.com/success')
@@ -294,7 +421,6 @@ $response = CreatePaymentPageBuilder::create('your-api-token')
 
 if ($response->isSuccess()) {
     $redirectUrl = $response->getRedirectUrl();
-    // Rediriger le client vers cette URL
     header('Location: ' . $redirectUrl);
     exit;
 }
@@ -304,15 +430,15 @@ if ($response->isSuccess()) {
 
 ## 🧩 Les Value Objects
 
-Les Value Objects sont des classes qui valident les données au moment de leur création.
+Les Value Objects valident les données à leur création.
 
 | VO | Validation | Exemple |
 |----|------------|---------|
 | `UuidVO` | Format UUID v4 | `new UuidVO('f4401bd2-...')` |
-| `PhoneNumberVO` | Format E.164 sans + | `new PhoneNumberVO('260763456789')` |
-| `AmountVO` | Positif, numérique | `new AmountVO(15.00)` |
-| `ReferenceVO` | String | `new ReferenceVO('INV-123456')` |
-| `MessageVO` | String, max 22 caractères | `new MessageVO('Payment')` |
+| `PhoneNumberVO` | Format E.164 sans `+` | `new PhoneNumberVO('260763456789')` |
+| `AmountVO` | Positif, 2 décimales max | `new AmountVO(15.00)` |
+| `ReferenceVO` | 4 à 64 caractères, `a-z A-Z 0-9 -` | `new ReferenceVO('INV-123456')` |
+| `CustomerMessageVO` | 4 à 22 caractères après normalisation | `new CustomerMessageVO('Payment order')` |
 | `MetadataVO` | 10 champs max, valeurs scalaires | `new MetadataVO($data)` |
 
 ---
@@ -326,48 +452,65 @@ Les Value Objects sont des classes qui valident les données au moment de leur c
 | `Country` | Pays | `Country::ZMB`, `Country::COD` |
 | `Language` | Langues | `Language::EN`, `Language::FR` |
 | `DepositStatus` | Statuts de dépôt | `DepositStatus::COMPLETED` |
+| `DepositSearchStatus` | Résultat de recherche | `DepositSearchStatus::FOUND` |
+| `ResendCallbackStatus` | Résultat de renvoi | `ResendCallbackStatus::ACCEPTED` |
+| `FailureCode` | Codes d'erreur | `FailureCode::INVALID_PHONE_NUMBER` |
 | `PawaPayBaseUrl` | URL de base | `PawaPayBaseUrl::SANDBOX` |
 
 ---
 
 ## ❌ Gestion des erreurs
 
-### Exemple complet
+### Depuis le service (via `Data`)
+
+Aucune exception métier n'est levée : tout se traduit par `failureReason` non-null dans la `Data` de retour.
+
+```php
+$data = $service->initiateDeposit($record);
+
+if ($data->hasFailureReason) {
+    match ($data->failureReason->failureCode) {
+        FailureCode::INVALID_PHONE_NUMBER => /* corriger le numéro */,
+        FailureCode::AUTHENTICATION_ERROR => /* vérifier le token */,
+        FailureCode::PROVIDER_TEMPORARILY_UNAVAILABLE => /* réessayer plus tard */,
+        default => /* log */,
+    };
+}
+```
+
+### Depuis le client (via `Response`)
 
 ```php
 try {
     $response = $client->initiateDeposit($deposit);
-    
+
     if ($response->isSuccess()) {
-        // Traitement du succès
         return;
     }
-    
+
     if ($response->hasFailureReason()) {
         $failure = $response->getFailureReason();
-        
-        // Gestion par code d'erreur
+
         switch ($failure->failureCode) {
-            case 'INVALID_PHONE_NUMBER':
+            case FailureCode::INVALID_PHONE_NUMBER:
                 // Demander à l'utilisateur de corriger son numéro
                 break;
-                
-            case 'AUTHENTICATION_ERROR':
-                // Vérifier votre token API
+
+            case FailureCode::AUTHENTICATION_ERROR:
+                // Vérifier le token API
                 break;
-                
-            case 'PROVIDER_TEMPORARILY_UNAVAILABLE':
+
+            case FailureCode::PROVIDER_TEMPORARILY_UNAVAILABLE:
                 // Réessayer plus tard
                 break;
-                
+
             default:
                 // Erreur inconnue
                 break;
         }
     }
-    
+
 } catch (Exception $e) {
-    // Erreur réseau ou exception inattendue
     Log::error('Pawapay error: ' . $e->getMessage());
 }
 ```
@@ -376,7 +519,7 @@ try {
 
 ## 📝 Exemples concrets par pays
 
-### Zambie - MTN MoMo
+### Zambie — MTN MoMo
 
 ```php
 $deposit = InitiateDepositBuilder::create()
@@ -388,7 +531,7 @@ $deposit = InitiateDepositBuilder::create()
     ->build();
 ```
 
-### RDC - Vodacom MPesa (USD)
+### RDC — Vodacom MPesa (USD)
 
 ```php
 $deposit = InitiateDepositBuilder::create()
@@ -400,7 +543,7 @@ $deposit = InitiateDepositBuilder::create()
     ->build();
 ```
 
-### Kenya - M-Pesa
+### Kenya — M-Pesa
 
 ```php
 $deposit = InitiateDepositBuilder::create()
@@ -412,7 +555,7 @@ $deposit = InitiateDepositBuilder::create()
     ->build();
 ```
 
-### Nigeria - MTN MoMo
+### Nigeria — MTN MoMo
 
 ```php
 $deposit = InitiateDepositBuilder::create()

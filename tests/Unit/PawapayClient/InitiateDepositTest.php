@@ -6,6 +6,7 @@ namespace AndyDefer\PhpPawapay\Tests\Unit\PawapayClient;
 
 use AndyDefer\DomainStructures\Utils\StrictDataObject;
 use AndyDefer\PhpPawapay\Enums\Currency;
+use AndyDefer\PhpPawapay\Enums\FailureCode;
 use AndyDefer\PhpPawapay\Enums\PayerType;
 use AndyDefer\PhpPawapay\Enums\Provider;
 use AndyDefer\PhpPawapay\Tests\MockPawapayClient;
@@ -122,7 +123,7 @@ final class InitiateDepositTest extends TestCase
 
         $failure = $response->getFailureReason();
         $this->assertNotNull($failure);
-        $this->assertSame('PROVIDER_TEMPORARILY_UNAVAILABLE', $failure->failureCode);
+        $this->assertSame(FailureCode::PROVIDER_TEMPORARILY_UNAVAILABLE, $failure->failureCode);
     }
 
     public function test_initiate_deposit_rejected_invalid_phone_number(): void
@@ -144,7 +145,7 @@ final class InitiateDepositTest extends TestCase
 
         $failure = $response->getFailureReason();
         $this->assertNotNull($failure);
-        $this->assertSame('INVALID_PHONE_NUMBER', $failure->failureCode);
+        $this->assertSame(FailureCode::INVALID_PHONE_NUMBER, $failure->failureCode);
     }
 
     public function test_initiate_deposit_rejected_invalid_currency(): void
@@ -166,7 +167,7 @@ final class InitiateDepositTest extends TestCase
 
         $failure = $response->getFailureReason();
         $this->assertNotNull($failure);
-        $this->assertSame('INVALID_CURRENCY', $failure->failureCode);
+        $this->assertSame(FailureCode::INVALID_CURRENCY, $failure->failureCode);
     }
 
     public function test_initiate_deposit_rejected_invalid_amount(): void
@@ -188,7 +189,7 @@ final class InitiateDepositTest extends TestCase
 
         $failure = $response->getFailureReason();
         $this->assertNotNull($failure);
-        $this->assertSame('INVALID_AMOUNT', $failure->failureCode);
+        $this->assertSame(FailureCode::INVALID_AMOUNT, $failure->failureCode);
     }
 
     public function test_initiate_deposit_rejected_amount_out_of_bounds(): void
@@ -211,7 +212,7 @@ final class InitiateDepositTest extends TestCase
 
         $failure = $response->getFailureReason();
         $this->assertNotNull($failure);
-        $this->assertSame('AMOUNT_OUT_OF_BOUNDS', $failure->failureCode);
+        $this->assertSame(FailureCode::AMOUNT_OUT_OF_BOUNDS, $failure->failureCode);
     }
 
     // ==================== 400 BAD REQUEST ====================
@@ -228,7 +229,7 @@ final class InitiateDepositTest extends TestCase
 
         $failure = $response->getFailureReason();
         $this->assertNotNull($failure);
-        $this->assertSame('INVALID_INPUT', $failure->failureCode);
+        $this->assertSame(FailureCode::INVALID_INPUT, $failure->failureCode);
     }
 
     public function test_initiate_deposit_400_missing_parameter(): void
@@ -243,7 +244,7 @@ final class InitiateDepositTest extends TestCase
 
         $failure = $response->getFailureReason();
         $this->assertNotNull($failure);
-        $this->assertSame('MISSING_PARAMETER', $failure->failureCode);
+        $this->assertSame(FailureCode::MISSING_PARAMETER, $failure->failureCode);
     }
 
     public function test_initiate_deposit_400_invalid_parameter(): void
@@ -258,7 +259,7 @@ final class InitiateDepositTest extends TestCase
 
         $failure = $response->getFailureReason();
         $this->assertNotNull($failure);
-        $this->assertSame('INVALID_PARAMETER', $failure->failureCode);
+        $this->assertSame(FailureCode::INVALID_PARAMETER, $failure->failureCode);
     }
 
     public function test_initiate_deposit_400_unsupported_parameter(): void
@@ -273,7 +274,7 @@ final class InitiateDepositTest extends TestCase
 
         $failure = $response->getFailureReason();
         $this->assertNotNull($failure);
-        $this->assertSame('UNSUPPORTED_PARAMETER', $failure->failureCode);
+        $this->assertSame(FailureCode::UNSUPPORTED_PARAMETER, $failure->failureCode);
     }
 
     // ==================== 401 UNAUTHORIZED ====================
@@ -290,7 +291,7 @@ final class InitiateDepositTest extends TestCase
 
         $failure = $response->getFailureReason();
         $this->assertNotNull($failure);
-        $this->assertSame('AUTHENTICATION_ERROR', $failure->failureCode);
+        $this->assertSame(FailureCode::AUTHENTICATION_ERROR, $failure->failureCode);
     }
 
     // ==================== 403 FORBIDDEN ====================
@@ -307,7 +308,7 @@ final class InitiateDepositTest extends TestCase
 
         $failure = $response->getFailureReason();
         $this->assertNotNull($failure);
-        $this->assertSame('AUTHORISATION_ERROR', $failure->failureCode);
+        $this->assertSame(FailureCode::AUTHORISATION_ERROR, $failure->failureCode);
     }
 
     // ==================== 500 INTERNAL SERVER ERROR ====================
@@ -324,6 +325,6 @@ final class InitiateDepositTest extends TestCase
 
         $failure = $response->getFailureReason();
         $this->assertNotNull($failure);
-        $this->assertSame('UNKNOWN_ERROR', $failure->failureCode);
+        $this->assertSame(FailureCode::UNKNOWN_ERROR, $failure->failureCode);
     }
 }

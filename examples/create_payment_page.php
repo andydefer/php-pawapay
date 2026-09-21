@@ -52,7 +52,7 @@ if ($response->isSuccess()) {
     echo "❌ Échec de la création de la page de paiement\n";
     if ($response->hasFailureReason()) {
         $failure = $response->getFailureReason();
-        echo "Code d'erreur: ".$failure->failureCode."\n";
+        echo "Code d'erreur: ".$failure->failureCode->value."\n";
         echo 'Message: '.$failure->failureMessage."\n\n";
     }
 }
@@ -106,7 +106,7 @@ if ($response->isSuccess()) {
     echo "❌ Échec\n";
     if ($response->hasFailureReason()) {
         $failure = $response->getFailureReason();
-        echo 'Code: '.$failure->failureCode."\n";
+        echo 'Code: '.$failure->failureCode->value."\n";
         echo 'Message: '.$failure->failureMessage."\n";
     }
 }

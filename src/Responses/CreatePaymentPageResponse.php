@@ -6,10 +6,11 @@ namespace AndyDefer\PhpPawapay\Responses;
 
 use AndyDefer\PhpClient\Abstracts\Response;
 use AndyDefer\PhpClient\ValueObjects\UrlVO;
+use AndyDefer\PhpPawapay\Contracts\Responses\CreatePaymentPageResponseInterface;
 use AndyDefer\PhpPawapay\Structures\FailureReasonStruct;
 use AndyDefer\PhpPawapay\Structures\PaymentPageResponseStruct;
 
-final class CreatePaymentPageResponse extends Response
+final class CreatePaymentPageResponse extends Response implements CreatePaymentPageResponseInterface
 {
     public function getRedirectUrl(): ?UrlVO
     {

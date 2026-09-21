@@ -10,7 +10,7 @@ final class MetadataItemGraph extends Graph
 {
     public function __construct(
         public readonly string $key,
-        public readonly mixed $value,
+        public readonly string $value,
         public readonly ?bool $isPII = null,
     ) {}
 }

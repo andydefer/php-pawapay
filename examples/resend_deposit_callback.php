@@ -31,14 +31,14 @@ if ($response->isAccepted()) {
 
     if ($response->hasFailureReason()) {
         $failure = $response->getFailureReason();
-        echo "Code d'erreur: ".$failure->failureCode."\n";
+        echo "Code d'erreur: ".$failure->failureCode->value."\n";
         echo 'Message: '.$failure->failureMessage."\n";
     }
 }
 
 if ($response->hasFailureReason()) {
     $failure = $response->getFailureReason();
-    echo '❌ Erreur API: '.$failure->failureCode."\n";
+    echo '❌ Erreur API: '.$failure->failureCode->value."\n";
     echo 'Message: '.$failure->failureMessage."\n";
 }
 
