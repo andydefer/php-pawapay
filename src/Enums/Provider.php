@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace AndyDefer\PhpPawapay\Enums;
 
 enum Provider: string
@@ -86,6 +88,10 @@ enum Provider: string
     case MTN_MOMO_ZMB = 'MTN_MOMO_ZMB';
     case ZAMTEL_ZMB = 'ZAMTEL_ZMB';
 
+    // =========================================================================
+    // MMO
+    // =========================================================================
+
     public function getMMO(): MMO
     {
         return match ($this) {
@@ -126,15 +132,9 @@ enum Provider: string
         };
     }
 
-    public function getCallingCode(): CallingCode
-    {
-        return $this->getCountry()->getCallingCode();
-    }
-
-    public function getCurrencies(): array
-    {
-        return $this->getCountry()->getCurrencies();
-    }
+    // =========================================================================
+    // COUNTRY
+    // =========================================================================
 
     public function getCountry(): Country
     {
@@ -160,5 +160,113 @@ enum Provider: string
             self::AIRTEL_OAPI_UGA, self::MTN_MOMO_UGA => Country::UGA,
             self::AIRTEL_OAPI_ZMB, self::MTN_MOMO_ZMB, self::ZAMTEL_ZMB => Country::ZMB,
         };
+    }
+
+    // =========================================================================
+    // CALLING CODE & CURRENCIES
+    // =========================================================================
+
+    public function getCallingCode(): CallingCode
+    {
+        return $this->getCountry()->getCallingCode();
+    }
+
+    public function getCurrencies(): array
+    {
+        return $this->getCountry()->getCurrencies();
+    }
+
+    // =========================================================================
+    // PHONE PREFIXES
+    // =========================================================================
+
+    /**
+     * Récupère les préfixes téléphoniques locaux associés à ce provider.
+     *
+     * Les préfixes dépendent du MMO (opérateur), pas du pays :
+     * Vodacom utilise les mêmes préfixes partout, idem Airtel, Orange.
+     *
+     * @return array<string>
+     */
+    public function getPhonePrefixes(): array
+    {
+        return match ($this->getMMO()) {
+            MMO::VODACOM => ['81', '82', '83', '80', '90', '91', '92', '93', '94', '95', '96', '97', '98', '99'],
+            MMO::AIRTEL => ['99', '97', '81', '82', '83', '84', '85'],
+            MMO::ORANGE => ['85', '89', '84', '86', '87', '88'],
+            default => [],
+        };
+    }
+
+    // =========================================================================
+    // STATIC HELPERS
+    // =========================================================================
+
+    /**
+     * Détecte le Provider à partir d'un numéro de téléphone.
+     *
+     * Essaie les formats : international (`243XXXXXXXXX`), local
+     * (`0XXXXXXXXX`), ou brut (`XXXXXXXXX`). Le pays est déduit du
+     * calling code présent dans le numéro, puis le MMO est identifié
+     * par le préfixe local.
+     */
+    public static function fromPhoneNumber(string $phoneNumber): ?self
+    {
+        $cleaned = preg_replace('/\D+/', '', $phoneNumber);
+
+        if ($cleaned === null || $cleaned === '') {
+            return null;
+        }
+
+        foreach (self::cases() as $provider) {
+            // Ex: '+243' → '243'
+            $callingCode = ltrim($provider->getCallingCode()->value, '+');
+
+            if ($callingCode === '' || ! str_starts_with($cleaned, $callingCode)) {
+                continue;
+            }
+
+            $national = substr($cleaned, strlen($callingCode));
+
+            if (str_starts_with($national, '0')) {
+                $national = substr($national, 1);
+            }
+
+            $prefix = substr($national, 0, 2);
+
+            if ($prefix === '' || ! in_array($prefix, $provider->getPhonePrefixes(), true)) {
+                continue;
+            }
+
+            return $provider;
+        }
+
+        return null;
+    }
+
+    /**
+     * Récupère tous les providers pour un pays donné.
+     *
+     * @return array<self>
+     */
+    public static function forCountry(Country $country): array
+    {
+        return array_values(array_filter(
+            self::cases(),
+            fn (self $provider): bool => $provider->getCountry() === $country,
+        ));
+    }
+
+    /**
+     * Récupère tous les providers associés à un MMO donné.
+     *
+     * @return array<self>
+     */
+    public static function forMMO(MMO $mmo): array
+    {
+        return array_values(array_filter(
+            self::cases(),
+            fn (self $provider): bool => $provider->getMMO() === $mmo,
+        ));
     }
 }
