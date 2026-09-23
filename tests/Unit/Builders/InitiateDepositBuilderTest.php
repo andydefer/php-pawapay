@@ -106,7 +106,7 @@ final class InitiateDepositBuilderTest extends TestCase
 
     public function test_builder_with_customer_message(): void
     {
-        $message = 'Payment for order #RDC-123456';
+        $message = 'Payment order RDC';
 
         $deposit = InitiateDepositBuilder::create()
             ->withPhoneNumber('243812345678')
@@ -114,7 +114,7 @@ final class InitiateDepositBuilderTest extends TestCase
             ->withCustomerMessage($message)
             ->build();
 
-        $this->assertSame('payment for order rdc', $deposit->customerMessage->getValue());
+        $this->assertSame('payment order rdc', $deposit->customerMessage->getValue());
     }
 
     public function test_builder_with_metadata(): void
@@ -158,7 +158,7 @@ final class InitiateDepositBuilderTest extends TestCase
             ->withAmount(25.50)
             ->withCurrency(Currency::USD)
             ->withClientReferenceId('REF-RDC-123456')
-            ->withCustomerMessage('Payment for order #RDC-123456')
+            ->withCustomerMessage('Payment order RDC')
             ->withMetadataKey('orderId', 'ORD-RDC-123456789')
             ->withMetadataKey('customerId', 'customer@email.com')
             ->build();
@@ -170,7 +170,7 @@ final class InitiateDepositBuilderTest extends TestCase
         $this->assertSame('25.50', $deposit->amount->getValue());
         $this->assertSame(Currency::USD, $deposit->currency);
         $this->assertSame('REF-RDC-123456', $deposit->clientReferenceId->getValue());
-        $this->assertSame('payment for order rdc', $deposit->customerMessage->getValue());
+        $this->assertSame('payment order rdc', $deposit->customerMessage->getValue());
         $this->assertSame('ORD-RDC-123456789', $deposit->metadata->get('orderId'));
         $this->assertSame('customer@email.com', $deposit->metadata->get('customerId'));
     }

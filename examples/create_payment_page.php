@@ -15,7 +15,7 @@ use AndyDefer\PhpPawapay\Graphs\AmountDetailsGraph;
 use AndyDefer\PhpPawapay\PawapayClient;
 use AndyDefer\PhpPawapay\Structures\PaymentPageStruct;
 use AndyDefer\PhpPawapay\ValueObjects\AmountVO;
-use AndyDefer\PhpPawapay\ValueObjects\MessageVO;
+use AndyDefer\PhpPawapay\ValueObjects\CustomerMessageVO;
 use AndyDefer\PhpPawapay\ValueObjects\MetadataVO;
 use AndyDefer\PhpPawapay\ValueObjects\PhoneNumberVO;
 use AndyDefer\PhpPawapay\ValueObjects\UuidVO;
@@ -91,8 +91,8 @@ $paymentPage = new PaymentPageStruct(
     phoneNumber: $phoneNumber,
     language: Language::FR,
     country: Country::COD,
-    customerMessage: new MessageVO('paiement'),
-    reason: new MessageVO('paiement'),
+    customerMessage: new CustomerMessageVO('paiement'),
+    reason: new CustomerMessageVO('paiement'),
     metadata: $metadata
 );
 

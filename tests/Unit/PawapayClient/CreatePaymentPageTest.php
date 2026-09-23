@@ -14,7 +14,7 @@ use AndyDefer\PhpPawapay\Graphs\AmountDetailsGraph;
 use AndyDefer\PhpPawapay\Structures\PaymentPageStruct;
 use AndyDefer\PhpPawapay\Tests\MockPawapayClient;
 use AndyDefer\PhpPawapay\ValueObjects\AmountVO;
-use AndyDefer\PhpPawapay\ValueObjects\MessageVO;
+use AndyDefer\PhpPawapay\ValueObjects\CustomerMessageVO;
 use AndyDefer\PhpPawapay\ValueObjects\MetadataVO;
 use AndyDefer\PhpPawapay\ValueObjects\PhoneNumberVO;
 use AndyDefer\PhpPawapay\ValueObjects\UuidVO;
@@ -54,8 +54,8 @@ final class CreatePaymentPageTest extends TestCase
             phoneNumber: $phoneNumber,
             language: Language::EN,
             country: Country::COD,
-            customerMessage: new MessageVO('Payment for order RDC-123456'),
-            reason: new MessageVO('Ticket to festival'),
+            customerMessage: new CustomerMessageVO('Payment order RDC'),
+            reason: new CustomerMessageVO('Ticket to festival'),
             metadata: $metadata,
         );
     }

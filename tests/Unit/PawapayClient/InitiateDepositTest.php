@@ -12,8 +12,8 @@ use AndyDefer\PhpPawapay\Enums\Provider;
 use AndyDefer\PhpPawapay\Tests\MockPawapayClient;
 use AndyDefer\PhpPawapay\ValueObjects\AccountDetailsVO;
 use AndyDefer\PhpPawapay\ValueObjects\AmountVO;
+use AndyDefer\PhpPawapay\ValueObjects\CustomerMessageVO;
 use AndyDefer\PhpPawapay\ValueObjects\InitiateDepositVO;
-use AndyDefer\PhpPawapay\ValueObjects\MessageVO;
 use AndyDefer\PhpPawapay\ValueObjects\MetadataVO;
 use AndyDefer\PhpPawapay\ValueObjects\PayerVO;
 use AndyDefer\PhpPawapay\ValueObjects\PhoneNumberVO;
@@ -61,7 +61,7 @@ final class InitiateDepositTest extends TestCase
             currency: Currency::ZMW,
             preAuthorisationCode: null,
             clientReferenceId: new ReferenceVO('INV-123456'),
-            customerMessage: new MessageVO('Payment for order #123456'),
+            customerMessage: new CustomerMessageVO('Order #123456'),
             metadata: $metadata,
         );
     }

@@ -17,7 +17,7 @@ final class InitiateDepositVO extends AbstractValueObject
         public readonly Currency $currency,
         public readonly ?PreAuthorisationCodeVO $preAuthorisationCode = null,
         public readonly ?ReferenceVO $clientReferenceId = null,
-        public readonly ?MessageVO $customerMessage = null,
+        public readonly ?CustomerMessageVO $customerMessage = null,
         public readonly ?MetadataVO $metadata = null
     ) {}
 

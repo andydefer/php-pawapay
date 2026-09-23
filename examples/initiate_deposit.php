@@ -13,8 +13,8 @@ use AndyDefer\PhpPawapay\Enums\Provider;
 use AndyDefer\PhpPawapay\PawapayClient;
 use AndyDefer\PhpPawapay\ValueObjects\AccountDetailsVO;
 use AndyDefer\PhpPawapay\ValueObjects\AmountVO;
+use AndyDefer\PhpPawapay\ValueObjects\CustomerMessageVO;
 use AndyDefer\PhpPawapay\ValueObjects\InitiateDepositVO;
-use AndyDefer\PhpPawapay\ValueObjects\MessageVO;
 use AndyDefer\PhpPawapay\ValueObjects\MetadataVO;
 use AndyDefer\PhpPawapay\ValueObjects\PayerVO;
 use AndyDefer\PhpPawapay\ValueObjects\PhoneNumberVO;
@@ -102,7 +102,7 @@ $deposit = new InitiateDepositVO(
     currency: Currency::USD,
     preAuthorisationCode: null,
     clientReferenceId: new ReferenceVO('INV-RDC-123456'),
-    customerMessage: new MessageVO('Payment for order #RDC-123456'),
+    customerMessage: new CustomerMessageVO('Payment for order #RDC-123456'),
     metadata: $metadata
 );
 

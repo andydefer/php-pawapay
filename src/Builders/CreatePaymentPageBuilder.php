@@ -15,7 +15,7 @@ use AndyDefer\PhpPawapay\PawapayClient;
 use AndyDefer\PhpPawapay\Responses\CreatePaymentPageResponse;
 use AndyDefer\PhpPawapay\Structures\PaymentPageStruct;
 use AndyDefer\PhpPawapay\ValueObjects\AmountVO;
-use AndyDefer\PhpPawapay\ValueObjects\MessageVO;
+use AndyDefer\PhpPawapay\ValueObjects\CustomerMessageVO;
 use AndyDefer\PhpPawapay\ValueObjects\MetadataVO;
 use AndyDefer\PhpPawapay\ValueObjects\PhoneNumberVO;
 use AndyDefer\PhpPawapay\ValueObjects\UuidVO;
@@ -41,9 +41,9 @@ final class CreatePaymentPageBuilder
 
     private Country $country;
 
-    private ?MessageVO $customerMessage = null;
+    private ?CustomerMessageVO $customerMessage = null;
 
-    private ?MessageVO $reason = null;
+    private ?CustomerMessageVO $reason = null;
 
     private ?MetadataVO $metadata = null;
 
@@ -122,14 +122,14 @@ final class CreatePaymentPageBuilder
 
     public function withCustomerMessage(?string $message): self
     {
-        $this->customerMessage = $message !== null ? new MessageVO($message) : null;
+        $this->customerMessage = $message !== null ? new CustomerMessageVO($message) : null;
 
         return $this;
     }
 
     public function withReason(?string $reason): self
     {
-        $this->reason = $reason !== null ? new MessageVO($reason) : null;
+        $this->reason = $reason !== null ? new CustomerMessageVO($reason) : null;
 
         return $this;
     }

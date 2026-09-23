@@ -10,8 +10,8 @@ use AndyDefer\PhpPawapay\Enums\PayerType;
 use AndyDefer\PhpPawapay\Enums\Provider;
 use AndyDefer\PhpPawapay\ValueObjects\AccountDetailsVO;
 use AndyDefer\PhpPawapay\ValueObjects\AmountVO;
+use AndyDefer\PhpPawapay\ValueObjects\CustomerMessageVO;
 use AndyDefer\PhpPawapay\ValueObjects\InitiateDepositVO;
-use AndyDefer\PhpPawapay\ValueObjects\MessageVO;
 use AndyDefer\PhpPawapay\ValueObjects\MetadataVO;
 use AndyDefer\PhpPawapay\ValueObjects\PayerVO;
 use AndyDefer\PhpPawapay\ValueObjects\PhoneNumberVO;
@@ -153,7 +153,7 @@ final class InitiateDepositBuilder
                 ? ReferenceVO::from($this->clientReferenceId)
                 : null,
             customerMessage: $this->customerMessage !== null
-                ? MessageVO::from($this->customerMessage)
+                ? CustomerMessageVO::from($this->customerMessage)
                 : null,
             metadata: $this->metadata,
         );
