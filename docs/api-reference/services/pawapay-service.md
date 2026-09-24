@@ -2,158 +2,323 @@
 
 ## Description
 
-Service applicatif qui encapsule le `PawapayClient` bas niveau. Il traduit les `Record` d'entrée en objets métier PawaPay, exécute l'appel HTTP, puis convertit les `Response` en `Data` typées pour l'appelant.
+Façade métier par défaut du SDK PawaPay : orchestre les quatre opérations PawaPay et le dispatch des callbacks, en convertissant les `Record` en Value Objects et les `Response` en `Data`.
 
 ## Hiérarchie / Implémentations
 
-- Implémente : `AndyDefer\PhpPawapay\Contracts\PawapayInterface`
-- Dépend de : `AndyDefer\PhpPawapay\Contracts\PawapayClientInterface`
-- Utilise : `PawapayClient`, `InitiateDepositVO`, `ReferenceVO`, `PaymentPageStruct`, `FailureReasonStruct`
-- Retourne : `InitiateDepositData`, `CheckDepositStatusData`, `ResendDepositCallbackData`, `CreatePaymentPageData`, `FailureReasonData`
+```
+PawapayInterface
+    └── PawapayService
+```
+
+Classe non `final` — conçue pour être étendue via héritage afin de greffer des hooks métier.
 
 ## Rôle principal
 
-Fournir une façade stable, typée et testable au-dessus du SDK PawaPay. Elle expose quatre opérations métier (dépôt, statut, callback, page de paiement) avec une signature uniforme `Record → Data`, sans laisser fuiter les `Struct`, `Graph` ou `Response` bruts du client.
+`PawapayService` est la couche d'orchestration entre votre code métier et le client HTTP PawaPay. Elle :
 
-## API
+1. reçoit des `Record` (entrées typées),
+2. applique les hooks `before*`,
+3. convertit les `Record` en Value Objects (`InitiateDepositVO`, `PaymentPageStruct`, etc.),
+4. délègue l'appel HTTP au `PawapayClient`,
+5. convertit les `Response` en `Data` typées,
+6. applique les hooks `after*`,
+7. retourne la `Data` ou propage un `ErrorResponseData`.
+
+Elle expose également `handleCallback()` pour dispatcher un callback PawaPay vers la bonne méthode d'un `HandlesCallbacksInterface`.
+
+Chaque hook peut **court-circuiter** le flux en retournant un `ErrorResponseData` (les quatre opérations métier uniquement).
+
+## Installation
+
+Aucune installation spécifique. Fournie par le package `andydefer/php-pawapay`.
+
+```bash
+composer require andydefer/php-pawapay
+```
+
+## API / Méthodes publiques
 
 ### `__construct(PawapayClientInterface $client)`
 
-| Paramètre | Type | Requis | Défaut | Description |
-|-----------|------|--------|--------|-------------|
-| `$client` | `PawapayClientInterface` | ✅ | - | Client HTTP bas niveau qui exécute les appels PawaPay |
+Initialise le service avec un client PawaPay.
 
-### `static create(string $apiToken, PawaPayBaseUrl $baseUrl): self`
+| Paramètre | Type | Description |
+|-----------|------|-------------|
+| `$client` | `PawapayClientInterface` | Client HTTP bas niveau |
 
-| Paramètre | Type | Requis | Défaut | Description |
-|-----------|------|--------|--------|-------------|
-| `$apiToken` | `string` | ✅ | - | Token API PawaPay |
-| `$baseUrl` | `PawaPayBaseUrl` | ✅ | - | Environnement ciblé (`SANDBOX` ou `PRODUCTION`) |
-
-Retourne une instance auto-construite avec un `PawapayClient` interne.
-
-### `initiateDeposit(InitiateDepositRecord $record): InitiateDepositData`
-
-Déclenche un dépôt Mobile Money à partir d'un Record.
-
-| Paramètre | Type | Requis | Défaut | Description |
-|-----------|------|--------|--------|-------------|
-| `$record` | `InitiateDepositRecord` | ✅ | - | Données du dépôt (depositId, payer, amount, currency, clientReferenceId, customerMessage, metadata) |
-
-### `checkDepositStatus(CheckDepositStatusRecord $record): CheckDepositStatusData`
-
-Récupère l'état d'un dépôt existant.
-
-| Paramètre | Type | Requis | Défaut | Description |
-|-----------|------|--------|--------|-------------|
-| `$record` | `CheckDepositStatusRecord` | ✅ | - | Contient le `depositId` à interroger |
-
-### `resendDepositCallback(ResendDepositCallbackRecord $record): ResendDepositCallbackData`
-
-Demande à PawaPay de renvoyer le webhook d'un dépôt.
-
-| Paramètre | Type | Requis | Défaut | Description |
-|-----------|------|--------|--------|-------------|
-| `$record` | `ResendDepositCallbackRecord` | ✅ | - | Contient le `depositId` à relancer |
-
-### `createPaymentPage(CreatePaymentPageRecord $record): CreatePaymentPageData`
-
-Crée une page de paiement hébergée par PawaPay et renvoie l'URL de redirection.
-
-| Paramètre | Type | Requis | Défaut | Description |
-|-----------|------|--------|--------|-------------|
-| `$record` | `CreatePaymentPageRecord` | ✅ | - | depositId, returnUrl, amountDetails, phoneNumber, language, country, customerMessage, metadata |
-
-## Méthodes internes
-
-| Méthode | Visibilité | Description |
-|---------|-----------|-------------|
-| `failureReasonToData(?FailureReasonStruct): ?FailureReasonData` | `private` | Convertit un `FailureReasonStruct` en `FailureReasonData`, ou `null` si absent |
-
-## Exemples d'utilisation
-
-### Exemple 1 : Instanciation via la factory
+**Exemple :**
 
 ```php
+$service = new PawapayService(new PawapayClient($token, PawaPayBaseUrl::SANDBOX));
+```
+
+---
+
+### `create(string $apiToken, PawaPayBaseUrl $baseUrl): self`
+
+Factory statique qui instancie un `PawapayClient` par défaut.
+
+| Paramètre | Type | Description |
+|-----------|------|-------------|
+| `$apiToken` | `string` | Token d'authentification Bearer |
+| `$baseUrl` | `PawaPayBaseUrl` | Enum `SANDBOX` ou `PRODUCTION` |
+
+**Retourne :** `self` — Instance prête à l'emploi.
+
+**Exemple :**
+
+```php
+$service = PawapayService::create('eyJraWQiOiIx...', PawaPayBaseUrl::SANDBOX);
+```
+
+---
+
+### `initiateDeposit(InitiateDepositRecord $record): InitiateDepositData|ErrorResponseData`
+
+Initie un dépôt Mobile Money.
+
+| Paramètre | Type | Description |
+|-----------|------|-------------|
+| `$record` | `InitiateDepositRecord` | Données du dépôt |
+
+**Retourne :** `InitiateDepositData` en succès, `ErrorResponseData` si un hook court-circuite.
+
+**Exceptions :** `InvalidArgumentException` si un Value Object interne est invalide.
+
+---
+
+### `checkDepositStatus(CheckDepositStatusRecord $record): CheckDepositStatusData|ErrorResponseData`
+
+Vérifie le statut d'un dépôt existant.
+
+| Paramètre | Type | Description |
+|-----------|------|-------------|
+| `$record` | `CheckDepositStatusRecord` | Identifiant du dépôt |
+
+**Retourne :** `CheckDepositStatusData` en succès, `ErrorResponseData` si court-circuit.
+
+---
+
+### `resendDepositCallback(ResendDepositCallbackRecord $record): ResendDepositCallbackData|ErrorResponseData`
+
+Demande à PawaPay de renvoyer le callback d'un dépôt.
+
+| Paramètre | Type | Description |
+|-----------|------|-------------|
+| `$record` | `ResendDepositCallbackRecord` | Identifiant du dépôt |
+
+**Retourne :** `ResendDepositCallbackData` en succès, `ErrorResponseData` si court-circuit.
+
+---
+
+### `createPaymentPage(CreatePaymentPageRecord $record): CreatePaymentPageData|ErrorResponseData`
+
+Crée une page de paiement hébergée PawaPay.
+
+| Paramètre | Type | Description |
+|-----------|------|-------------|
+| `$record` | `CreatePaymentPageRecord` | Données de la page |
+
+**Retourne :** `CreatePaymentPageData` en succès, `ErrorResponseData` si court-circuit.
+
+---
+
+### `handleCallback(DepositCallbackStruct|PayoutCallbackStruct|RefundCallbackStruct|CheckoutCallbackStruct $struct, HandlesCallbacksInterface $handler): void`
+
+Dispatche un callback PawaPay vers la méthode correspondante du handler.
+
+| Paramètre | Type | Description |
+|-----------|------|-------------|
+| `$struct` | `DepositCallbackStruct\|PayoutCallbackStruct\|RefundCallbackStruct\|CheckoutCallbackStruct` | Struct du callback hydraté |
+| `$handler` | `HandlesCallbacksInterface` | Handler qui reçoit le callback |
+
+**Retourne :** `void`
+
+**Exemple :**
+
+```php
+$service->handleCallback($struct, $handler);
+```
+
+---
+
+## Cas d'utilisation
+
+### Cas 1 : Dépôt simple
+
+```php
+<?php
+
+declare(strict_types=1);
+
 use AndyDefer\PhpPawapay\Enums\PawaPayBaseUrl;
+use AndyDefer\PhpPawapay\Records\InitiateDepositRecord;
 use AndyDefer\PhpPawapay\Services\PawapayService;
 
 $service = PawapayService::create(
-    apiToken: config('pawapay.api_token'),
+    apiToken: $_ENV['PAWAPAY_API_TOKEN'],
     baseUrl: PawaPayBaseUrl::SANDBOX,
 );
-```
 
-### Exemple 2 : Initier un dépôt
-
-```php
-use AndyDefer\PhpPawapay\Records\InitiateDepositRecord;
-
-$data = $service->initiateDeposit(
-    InitiateDepositRecord::from([
-        'depositId' => $uuid,
-        'payer' => $payer,
-        'amount' => $amount,
-        'currency' => $currency,
-        'clientReferenceId' => 'ORDER-123',
-        'customerMessage' => $message,
-    ]),
-);
+$data = $service->initiateDeposit(InitiateDepositRecord::from([
+    // ...
+]));
 
 if ($data->isAccepted) {
-    // stocker $data->depositId en base
+    echo "Dépôt accepté : {$data->depositId->getValue()}\n";
 }
 ```
 
-### Exemple 3 : Vérifier un dépôt
+### Cas 2 : Service étendu avec hooks
 
 ```php
-use AndyDefer\PhpPawapay\Records\CheckDepositStatusRecord;
+<?php
 
-$data = $service->checkDepositStatus(
-    CheckDepositStatusRecord::from(['depositId' => $uuid]),
-);
+declare(strict_types=1);
 
-if ($data->isFound && $data->depositData?->status->isCompleted()) {
-    // paiement confirmé
+namespace App\Services;
+
+use AndyDefer\PhpPawapay\Datas\InitiateDepositData;
+use AndyDefer\PhpPawapay\Datas\ErrorResponseData;
+use AndyDefer\PhpPawapay\Records\InitiateDepositRecord;
+use AndyDefer\PhpPawapay\Services\PawapayService;
+
+final class AfyaPawapayService extends PawapayService
+{
+    protected function beforeInitiateDeposit(InitiateDepositRecord $record): ?ErrorResponseData
+    {
+        if ($record->amount->toFloat() > 10_000) {
+            return ErrorResponseData::from([
+                'message' => 'Montant trop élevé',
+                'status' => \AndyDefer\PhpVo\Enums\HttpStatusCode::FORBIDDEN,
+                'errorCode' => 'AMOUNT_TOO_HIGH',
+            ]);
+        }
+
+        return null;
+    }
+
+    protected function afterInitiateDeposit(
+        InitiateDepositRecord $record,
+        InitiateDepositData $data,
+    ): ?ErrorResponseData {
+        // Persister la tentative
+        return null;
+    }
 }
+```
+
+### Cas 3 : Dispatch d'un callback
+
+```php
+<?php
+
+declare(strict_types=1);
+
+use AndyDefer\PhpPawapay\Enums\CallbackOperationType;
+use AndyDefer\PhpPawapay\Services\PawapayService;
+use App\Services\PawapayCallbackHandler;
+
+$payload = $request->json()->all();
+
+$operation = CallbackOperationType::fromPayload($payload);
+$structClass = $operation->structClass();
+$struct = $structClass::from($payload);
+
+/** @var PawapayService $service */
+$service->handleCallback($struct, new PawapayCallbackHandler());
+```
+
+## Flux d'exécution
+
+### Opération métier standard
+
+```
+Record
+    │
+    ▼
+before<Operation>(Record)
+    │
+    ├── ErrorResponseData → return (court-circuit)
+    │
+    ▼
+Value Object / Struct
+    │
+    ▼
+PawapayClient HTTP call
+    │
+    ▼
+Response → Data::from(...)
+    │
+    ▼
+after<Operation>(Record, Data)
+    │
+    ├── ErrorResponseData → return (court-circuit)
+    │
+    ▼
+return Data
+```
+
+### Dispatch de callback
+
+```
+Struct + Handler
+    │
+    ▼
+operationOf(Struct) → CallbackOperationType
+    │
+    ▼
+beforeHandleCallback(Struct, Operation)
+    │
+    ▼
+match (Struct)
+    ├── DepositCallbackStruct  → handler->handleDeposit
+    ├── PayoutCallbackStruct   → handler->handlePayout
+    ├── RefundCallbackStruct   → handler->handleRefund
+    └── CheckoutCallbackStruct → handler->handleCheckout
+    │
+    ▼
+afterHandleCallback(Struct, Operation)
 ```
 
 ## Gestion des erreurs
 
-Le service ne lève pas d'exception métier : toute erreur PawaPay ou réseau se traduit par un `FailureReasonData` non-null dans la `Data` de retour.
-
-| Situation | Champ | Message typique |
-|-----------|-------|-----------------|
-| Token invalide | `failureReason->failureCode` = `FailureCode::AUTHENTICATION_ERROR` | `The API token in the request is invalid.` |
-| Token non autorisé | `FailureCode::AUTHORISATION_ERROR` | `The API token in the request is not authorised for this endpoint.` |
-| Provider indisponible | `FailureCode::PROVIDER_TEMPORARILY_UNAVAILABLE` | `The provider 'XXX' is currently not able to process payments.` |
-| Téléphone invalide | `FailureCode::INVALID_PHONE_NUMBER` | `The phone number 'XXX' seems to be invalid for the provider 'YYY'.` |
-| Devise non supportée | `FailureCode::INVALID_CURRENCY` | `The currency 'XXX' is not supported with provider 'YYY'.` |
-| Montant hors bornes | `FailureCode::AMOUNT_OUT_OF_BOUNDS` | `The amount needs to be more than 'X' and less than 'Y' for provider 'ZZZ'.` |
-| Erreur inconnue | `FailureCode::UNKNOWN_ERROR` | `Unable to process request due to an unknown problem.` |
+| Situation | Exception | Message |
+|-----------|-----------|---------|
+| Value Object invalide | `InvalidArgumentException` | Message dépendant du VO |
+| Struct callback invalide | `InvalidArgumentException` | Message dépendant du Struct |
+| Erreur réseau | `GuzzleException` | Message dépendant de Guzzle |
+| Court-circuit hook | *(retour `ErrorResponseData`)* | N/A |
 
 ## Intégration
 
-- **Appel direct** : injecter `PawapayService` dans un contrôleur, un job, un listener.
-- **Conteneur Laravel** : binder `PawapayInterface` sur `PawapayService` et laisser l'injection automatique faire le reste.
-- **Adaptateur** : si tu veux isoler le métier de PawaPay (utile pour les tests d'intégration ou changer de fournisseur), tu peux interposer un `LaravelPaymentGateway` qui implémente la même interface.
-- **Records / Data** : les Records viennent de ton domaine (contrôleur, formulaire) ; les Data retournées sont ce que tu renvoies au client ou que tu persistes.
+| Composant | Rôle |
+|-----------|------|
+| `PawapayClientInterface` | Client HTTP injecté au constructeur |
+| `InitiateDepositRecord`, etc. | Entrées des 4 opérations |
+| `InitiateDepositData`, etc. | Sorties des 4 opérations |
+| `ErrorResponseData` | Retour de court-circuit via hook |
+| `HandlesCallbacksInterface` | Handler pour `handleCallback()` |
+| `CallbackOperationType` | Résolution du type d'opération |
+| `DepositCallbackStruct`, etc. | Struct de callbacks |
+| `FailureReasonStruct` | Conversion en `FailureReasonData` |
+
+Le service est **sans état** (hors dépendance injectée). Il peut être enregistré comme singleton dans un container DI.
 
 ## Performance
 
-- **Une instance par appel** ou **singleton** : `PawapayService` est stateless, il peut être enregistré en `singleton` dans le conteneur sans risque.
-- **Pas de cache interne** : chaque appel correspond à un appel HTTP. Si tu veux cacher les résultats, fais-le à un niveau supérieur (Repository, Cache Laravel).
-- **Coût de conversion** : les `Record → VO` et `Response → Data` sont des `from()` légers, aucune requête supplémentaire.
-- **Testabilité** : `PawapayClientInterface` est injectable, donc le service peut être testé avec un mock (voir `MockPawapayClient`).
+- Aucune I/O hors appels HTTP délégués au client.
+- Conversion `Response` → `Data` en O(1).
+- `operationOf()` fait un `match` sur 4 cas — O(1).
+- Les hooks vides ne coûtent qu'un appel de méthode.
 
 ## Compatibilité
 
-| Version | Support |
-|---------|---------|
-| PHP 8.1+ | ✅ Complet (`readonly`, enums, `never`) |
-| PHP 8.4 | ✅ Complet |
-| PHP 8.5 | ✅ Complet (testé sur ta stack) |
+| Version PHP | Support |
+|-------------|---------|
+| PHP 8.1+ | ✅ Complet (enums, `match`, `readonly`) |
+| PHP 8.0 | ❌ Non supporté |
 
 ## Exemple complet
 
@@ -170,48 +335,41 @@ use AndyDefer\PhpPawapay\Records\InitiateDepositRecord;
 use AndyDefer\PhpPawapay\Services\PawapayService;
 use AndyDefer\PhpPawapay\ValueObjects\AccountDetailsVO;
 use AndyDefer\PhpPawapay\ValueObjects\AmountVO;
-use AndyDefer\PhpPawapay\ValueObjects\CustomerMessageVO;
 use AndyDefer\PhpPawapay\ValueObjects\PayerVO;
 use AndyDefer\PhpPawapay\ValueObjects\PhoneNumberVO;
-use AndyDefer\PhpPawapay\ValueObjects\ReferenceVO;
 use AndyDefer\PhpPawapay\ValueObjects\UuidVO;
 
 $service = PawapayService::create(
-    apiToken: 'sandbox-token',
+    apiToken: $_ENV['PAWAPAY_API_TOKEN'],
     baseUrl: PawaPayBaseUrl::SANDBOX,
 );
 
-$accountDetails = AccountDetailsVO::from([
-    'phoneNumber' => PhoneNumberVO::from('243812345678'),
-    'provider' => Provider::VODACOM_MPESA_COD,
-]);
-
-$payer = PayerVO::from([
-    'type' => PayerType::MMO,
-    'accountDetails' => $accountDetails,
-]);
-
-$data = $service->initiateDeposit(
-    InitiateDepositRecord::from([
-        'depositId' => UuidVO::from('9b724dbf-32a7-4e63-96bb-59a4747e43ca'),
-        'payer' => $payer,
-        'amount' => AmountVO::from(25.50),
-        'currency' => Currency::USD,
-        'clientReferenceId' => 'REF-RDC-123456',
-        'customerMessage' => CustomerMessageVO::from('Paiement commande'),
+$data = $service->initiateDeposit(InitiateDepositRecord::from([
+    'depositId' => UuidVO::from('f4401bd2-1568-4140-bf2d-eb77d2b2b639'),
+    'payer' => PayerVO::from([
+        'type' => PayerType::MMO,
+        'accountDetails' => AccountDetailsVO::from([
+            'phoneNumber' => PhoneNumberVO::from('260763456789'),
+            'provider' => Provider::MTN_MOMO_ZMB,
+        ]),
     ]),
-);
+    'amount' => AmountVO::from(15.00),
+    'currency' => Currency::ZMW,
+]));
 
-echo $data->depositId;    // 9b724dbf-...
-echo $data->status->value; // ACCEPTED
+if ($data->isAccepted) {
+    echo "Dépôt accepté : {$data->depositId->getValue()}\n";
+} elseif ($data->hasFailureReason) {
+    echo "Échec : {$data->failureReason->failureCode->value}\n";
+}
 ```
 
 ## Voir aussi
 
-- `PawapayInterface` — contrat public du service
-- `PawapayClientInterface` — client HTTP bas niveau
-- `InitiateDepositRecord` / `InitiateDepositData` — entrée/sortie de `initiateDeposit`
-- `CheckDepositStatusRecord` / `CheckDepositStatusData` — entrée/sortie de `checkDepositStatus`
-- `ResendDepositCallbackRecord` / `ResendDepositCallbackData` — entrée/sortie de `resendDepositCallback`
-- `CreatePaymentPageRecord` / `CreatePaymentPageData` — entrée/sortie de `createPaymentPage`
-- `FailureReasonData` — représentation unifiée des erreurs PawaPay
+- `PawapayInterface` - Contrat implémenté
+- `PawapayClient` - Client HTTP sous-jacent
+- `InitiateDepositRecord`, `CheckDepositStatusRecord`, `ResendDepositCallbackRecord`, `CreatePaymentPageRecord` - Entrées
+- `InitiateDepositData`, `CheckDepositStatusData`, `ResendDepositCallbackData`, `CreatePaymentPageData` - Sorties
+- `ErrorResponseData` - Court-circuit de hook
+- `HandlesCallbacksInterface` - Handler de callbacks
+- `CallbackOperationType` - Détection du type d'opération

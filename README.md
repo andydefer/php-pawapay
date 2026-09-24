@@ -1,6 +1,6 @@
 # PHP Pawapay SDK
 
-SDK PHP pour l'intégration des paiements Mobile Money Pawapay à travers les marchés africains.
+**SDK PHP pour l'intégration des paiements Mobile Money Pawapay à travers les marchés africains.**
 
 [![PHP Version](https://img.shields.io/badge/PHP-%5E8.1-blue.svg)](https://www.php.net/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
@@ -19,6 +19,7 @@ SDK PHP pour l'intégration des paiements Mobile Money Pawapay à travers les ma
   - [Renvoyer un callback](#3-renvoyer-un-callback-de-dépôt)
   - [Créer une page de paiement](#4-créer-une-page-de-paiement)
 - [Traitement des callbacks](#traitement-des-callbacks)
+- [Hooks applicatifs](#hooks-applicatifs)
 - [Value Objects](#value-objects)
 - [Enums](#enums)
 - [Gestion des erreurs](#gestion-des-erreurs)
@@ -37,10 +38,11 @@ Pawapay est une plateforme de paiement qui permet d'accepter des paiements via M
 
 ### Ce que fait ce SDK
 
-Ce SDK transforme les appels HTTP bruts vers l'API Pawapay en **objets PHP typés, validés et documentés**. Il expose deux niveaux d'utilisation :
+Ce SDK transforme les appels HTTP bruts vers l'API Pawapay en **objets PHP typés, validés et documentés**. Il expose trois niveaux d'utilisation :
 
 - **`PawapayClient`** — client HTTP bas niveau, expose les `Response` typées du SDK.
 - **`PawapayService`** — façade applicative haut niveau, prend des `Record` et retourne des `Data`.
+- **Builders & `CallbackBuilder`** — API fluide pour construire des Value Objects et dispatcher les callbacks.
 
 ### Bénéfices
 
@@ -51,6 +53,7 @@ Ce SDK transforme les appels HTTP bruts vers l'API Pawapay en **objets PHP typé
 | Strings magiques | Enums (`Provider::MTN_MOMO_ZMB`, `Currency::ZMW`) |
 | Code répétitif | Builders fluides + façade `PawapayService` |
 | Mélange HTTP/métier | Séparation stricte `Record` (entrée) / `Data` (sortie) |
+| Dispatch manuel des callbacks | `CallbackBuilder` + `HandlesCallbacksInterface` typés |
 
 ### Compatibilité PHP
 
@@ -132,6 +135,7 @@ PAWAPAY_ENVIRONMENT=sandbox
 ┌─────────────────────────────────────────────────────────────────┐
 │                        PawapayService                           │
 │   Façade haut niveau — Record en entrée, Data en sortie         │
+│   + hooks before/after sur chaque opération                     │
 └────────────────────────────────┬────────────────────────────────┘
                                  │
                                  ▼
@@ -155,6 +159,7 @@ PAWAPAY_ENVIRONMENT=sandbox
 | Façade | `PawapayService` | Orchestration métier, `Record` → `Data` |
 | Client | `PawapayClient` | Communication HTTP, `Value Object` → `Response` |
 | Builders | `InitiateDepositBuilder`, etc. | API fluide pour construire les Value Objects |
+| Callback | `CallbackBuilder` + `HandlesCallbacksInterface` | Dispatch typé des callbacks |
 | Structures | `InitiateDepositStruct`, etc. | Corps de requête typés |
 | Responses | `InitiateDepositResponse`, etc. | Réponses HTTP typées |
 | Records | `InitiateDepositRecord`, etc. | Entrées de la façade |
@@ -370,9 +375,14 @@ exit;
 
 ## Traitement des callbacks
 
-Pawapay envoie les callbacks (deposit, payout, refund, checkout) sur votre endpoint. Le SDK fournit un `CallbackBuilder` qui détecte automatiquement l'opération à partir du payload et dispatch vers le bon handler.
+Pawapay envoie les callbacks (deposit, payout, refund, checkout) sur votre endpoint. Le SDK fournit deux façons de les traiter :
 
-### Interface `HandlesCallbacks`
+1. **Via `CallbackBuilder`** — approche bas niveau, prend un payload brut.
+2. **Via `PawapayService::handleCallback()`** — approche haut niveau, prend un `Struct` typé.
+
+### Interface `HandlesCallbacksInterface`
+
+Un handler unique avec quatre méthodes typées.
 
 ```php
 <?php
@@ -381,13 +391,13 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use AndyDefer\PhpPawapay\Contracts\Callbacks\HandlesCallbacks;
+use AndyDefer\PhpPawapay\Contracts\Callbacks\HandlesCallbacksInterface;
 use AndyDefer\PhpPawapay\Structures\Callbacks\CheckoutCallbackStruct;
 use AndyDefer\PhpPawapay\Structures\Callbacks\DepositCallbackStruct;
 use AndyDefer\PhpPawapay\Structures\Callbacks\PayoutCallbackStruct;
 use AndyDefer\PhpPawapay\Structures\Callbacks\RefundCallbackStruct;
 
-final class PawapayCallbackHandler implements HandlesCallbacks
+final class PawapayCallbackHandler implements HandlesCallbacksInterface
 {
     public function handleDeposit(DepositCallbackStruct $struct): void
     {
@@ -402,7 +412,7 @@ final class PawapayCallbackHandler implements HandlesCallbacks
 }
 ```
 
-### Dispatcher le callback
+### Approche 1 — `CallbackBuilder` (payload brut)
 
 ```php
 <?php
@@ -414,8 +424,31 @@ use AndyDefer\PhpPawapay\Builders\CallbackBuilder;
 $payload = json_decode($request->getContent(), true);
 
 CallbackBuilder::create()
-    ->withHandler(app(HandlesCallbacks::class))
+    ->withHandler(app(HandlesCallbacksInterface::class))
     ->execute($payload);
+```
+
+### Approche 2 — `PawapayService::handleCallback()` (Struct typé)
+
+L'appelant hydrates lui-même le `Struct` à partir du payload, puis le passe au service.
+
+```php
+<?php
+
+declare(strict_types=1);
+
+use AndyDefer\PhpPawapay\Enums\CallbackOperationType;
+use App\Services\PawapayCallbackHandler;
+
+$payload = $request->json()->all();
+
+$operation = CallbackOperationType::fromPayload($payload);
+$structClass = $operation->structClass();
+
+/** @var \AndyDefer\PhpPawapay\Structures\Callbacks\DepositCallbackStruct $struct */
+$struct = $structClass::from($payload);
+
+$pawapay->handleCallback($struct, new PawapayCallbackHandler());
 ```
 
 ### Détection automatique du type
@@ -431,7 +464,94 @@ CallbackBuilder::create()
 
 > **Ordre important :** `checkoutId` est vérifié en premier car un checkout contient aussi un objet `deposit`.
 
+`CallbackOperationType::structClass()` retourne la classe du `Struct` à hydrater pour l'opération détectée.
+
 > **Sécurité :** La vérification de signature et l'idempotence restent à votre charge — elles ne sont pas gérées par ce SDK.
+
+---
+
+## Hooks applicatifs
+
+`PawapayService` expose **10 hooks** surchargeables : 2 par opération métier + 2 pour les callbacks. Chaque hook `before*` / `after*` des opérations métier peut **court-circuiter** le flux en retournant un `ErrorResponseData`. Les hooks de callback retournent `void`.
+
+### Opérations métier
+
+| Hook | Signature |
+|------|-----------|
+| `beforeInitiateDeposit` | `(InitiateDepositRecord): ?ErrorResponseData` |
+| `afterInitiateDeposit` | `(InitiateDepositRecord, InitiateDepositData): ?ErrorResponseData` |
+| `beforeCheckDepositStatus` | `(CheckDepositStatusRecord): ?ErrorResponseData` |
+| `afterCheckDepositStatus` | `(CheckDepositStatusRecord, CheckDepositStatusData): ?ErrorResponseData` |
+| `beforeResendDepositCallback` | `(ResendDepositCallbackRecord): ?ErrorResponseData` |
+| `afterResendDepositCallback` | `(ResendDepositCallbackRecord, ResendDepositCallbackData): ?ErrorResponseData` |
+| `beforeCreatePaymentPage` | `(CreatePaymentPageRecord): ?ErrorResponseData` |
+| `afterCreatePaymentPage` | `(CreatePaymentPageRecord, CreatePaymentPageData): ?ErrorResponseData` |
+
+### Callbacks
+
+| Hook | Signature |
+|------|-----------|
+| `beforeHandleCallback` | `(Struct, CallbackOperationType): void` |
+| `afterHandleCallback` | `(Struct, CallbackOperationType): void` |
+
+### Exemple — service étendu
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services;
+
+use AndyDefer\PhpPawapay\Datas\ErrorResponseData;
+use AndyDefer\PhpPawapay\Datas\InitiateDepositData;
+use AndyDefer\PhpPawapay\Enums\CallbackOperationType;
+use AndyDefer\PhpPawapay\Records\InitiateDepositRecord;
+use AndyDefer\PhpPawapay\Services\PawapayService;
+use AndyDefer\PhpPawapay\Structures\Callbacks\CheckoutCallbackStruct;
+use AndyDefer\PhpPawapay\Structures\Callbacks\DepositCallbackStruct;
+use AndyDefer\PhpPawapay\Structures\Callbacks\PayoutCallbackStruct;
+use AndyDefer\PhpPawapay\Structures\Callbacks\RefundCallbackStruct;
+use AndyDefer\PhpVo\Enums\HttpStatusCode;
+
+final class AfyaPawapayService extends PawapayService
+{
+    protected function beforeInitiateDeposit(InitiateDepositRecord $record): ?ErrorResponseData
+    {
+        if ($record->amount->toFloat() > 10_000) {
+            return ErrorResponseData::from([
+                'message' => 'Montant trop élevé',
+                'status' => HttpStatusCode::FORBIDDEN,
+                'errorCode' => 'AMOUNT_TOO_HIGH',
+            ]);
+        }
+
+        return null;
+    }
+
+    protected function afterInitiateDeposit(
+        InitiateDepositRecord $record,
+        InitiateDepositData $data,
+    ): ?ErrorResponseData {
+        // Persister la tentative, notifier, ...
+        return null;
+    }
+
+    protected function beforeHandleCallback(
+        DepositCallbackStruct|PayoutCallbackStruct|RefundCallbackStruct|CheckoutCallbackStruct $struct,
+        CallbackOperationType $operation,
+    ): void {
+        // Vérification de signature, déduplication, ...
+    }
+
+    protected function afterHandleCallback(
+        DepositCallbackStruct|PayoutCallbackStruct|RefundCallbackStruct|CheckoutCallbackStruct $struct,
+        CallbackOperationType $operation,
+    ): void {
+        // Audit trail, métriques, ...
+    }
+}
+```
 
 ---
 
@@ -472,7 +592,7 @@ Les Value Objects valident les données à leur construction. Une valeur invalid
 
 ### Depuis le service (`Data`)
 
-Aucune exception métier n'est levée par la façade. Toute erreur se traduit par `failureReason` non-null dans la `Data` de retour.
+Aucune exception métier n'est levée par la façade pour les erreurs PawaPay. Toute erreur se traduit par `failureReason` non-null dans la `Data` de retour.
 
 ```php
 $data = $service->initiateDeposit($record);
@@ -484,6 +604,25 @@ if ($data->hasFailureReason) {
         FailureCode::PROVIDER_TEMPORARILY_UNAVAILABLE => /* réessayer plus tard */,
         default => /* log */,
     };
+}
+```
+
+### Depuis un hook (court-circuit)
+
+Un hook `before*` ou `after*` peut retourner un `ErrorResponseData`. Le service lève alors immédiatement la `Data` correspondante et n'appelle pas le client HTTP (ou n'exécute pas le `after*`).
+
+```php
+protected function beforeInitiateDeposit(InitiateDepositRecord $record): ?ErrorResponseData
+{
+    if ($record->amount->toFloat() > 10_000) {
+        return ErrorResponseData::from([
+            'message' => 'Montant trop élevé',
+            'status' => HttpStatusCode::FORBIDDEN,
+            'errorCode' => 'AMOUNT_TOO_HIGH',
+        ]);
+    }
+
+    return null;
 }
 ```
 
@@ -709,6 +848,11 @@ $deposit = InitiateDepositBuilder::create()
 
 Documentation détaillée de chaque composant :
 
+### Services
+
+- [`PawapayService`](docs/services/PawapayService.md) — façade métier, hooks, dispatch callbacks
+- [`PawapayClient`](docs/services/PawapayClient.md) — client HTTP bas niveau
+
 ### Builders
 
 - [`InitiateDepositBuilder`](docs/builders/InitiateDepositBuilder.md)
@@ -731,6 +875,7 @@ Documentation détaillée de chaque composant :
 - [Value Objects](docs/concepts/value-objects.md)
 - [Records vs Data](docs/concepts/records-vs-data.md)
 - [Gestion des callbacks](docs/concepts/callbacks.md)
+- [Hooks applicatifs](docs/concepts/hooks.md)
 
 ---
 

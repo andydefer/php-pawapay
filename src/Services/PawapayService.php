@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace AndyDefer\PhpPawapay\Services;
 
+use AndyDefer\PhpPawapay\Contracts\Callbacks\HandlesCallbacksInterface;
 use AndyDefer\PhpPawapay\Contracts\PawapayClientInterface;
 use AndyDefer\PhpPawapay\Contracts\PawapayInterface;
 use AndyDefer\PhpPawapay\Datas\CheckDepositStatusData;
@@ -12,36 +13,28 @@ use AndyDefer\PhpPawapay\Datas\ErrorResponseData;
 use AndyDefer\PhpPawapay\Datas\FailureReasonData;
 use AndyDefer\PhpPawapay\Datas\InitiateDepositData;
 use AndyDefer\PhpPawapay\Datas\ResendDepositCallbackData;
+use AndyDefer\PhpPawapay\Enums\CallbackOperationType;
 use AndyDefer\PhpPawapay\Enums\PawaPayBaseUrl;
 use AndyDefer\PhpPawapay\PawapayClient;
 use AndyDefer\PhpPawapay\Records\CheckDepositStatusRecord;
 use AndyDefer\PhpPawapay\Records\CreatePaymentPageRecord;
 use AndyDefer\PhpPawapay\Records\InitiateDepositRecord;
 use AndyDefer\PhpPawapay\Records\ResendDepositCallbackRecord;
+use AndyDefer\PhpPawapay\Structures\Callbacks\CheckoutCallbackStruct;
+use AndyDefer\PhpPawapay\Structures\Callbacks\DepositCallbackStruct;
+use AndyDefer\PhpPawapay\Structures\Callbacks\PayoutCallbackStruct;
+use AndyDefer\PhpPawapay\Structures\Callbacks\RefundCallbackStruct;
 use AndyDefer\PhpPawapay\Structures\FailureReasonStruct;
 use AndyDefer\PhpPawapay\Structures\PaymentPageStruct;
 use AndyDefer\PhpPawapay\ValueObjects\InitiateDepositVO;
 use AndyDefer\PhpPawapay\ValueObjects\ReferenceVO;
 
-/**
- * Default implementation of {@see PawapayInterface}.
- *
- * Orchestrates the four PawaPay operations by converting the incoming
- * {@see AbstractRecord} into PawaPay value objects, calling the low-level
- * client, and returning the response as typed {@see AbstractData}.
- *
- * Hooks (`before*` / `after*`) let subclasses short-circuit the flow by
- * returning an {@see ErrorResponseData}.
- */
 class PawapayService implements PawapayInterface
 {
     public function __construct(
         private readonly PawapayClientInterface $client,
     ) {}
 
-    /**
-     * {@inheritDoc}
-     */
     public function initiateDeposit(InitiateDepositRecord $record): InitiateDepositData|ErrorResponseData
     {
         $before = $this->beforeInitiateDeposit($record);
@@ -85,9 +78,6 @@ class PawapayService implements PawapayInterface
         return $data;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public function checkDepositStatus(CheckDepositStatusRecord $record): CheckDepositStatusData|ErrorResponseData
     {
         $before = $this->beforeCheckDepositStatus($record);
@@ -116,9 +106,6 @@ class PawapayService implements PawapayInterface
         return $data;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public function resendDepositCallback(ResendDepositCallbackRecord $record): ResendDepositCallbackData|ErrorResponseData
     {
         $before = $this->beforeResendDepositCallback($record);
@@ -147,9 +134,6 @@ class PawapayService implements PawapayInterface
         return $data;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public function createPaymentPage(CreatePaymentPageRecord $record): CreatePaymentPageData|ErrorResponseData
     {
         $before = $this->beforeCreatePaymentPage($record);
@@ -187,12 +171,26 @@ class PawapayService implements PawapayInterface
     }
 
     /**
-     * Create a service instance from an API token and a base URL.
-     *
-     * @param  string  $apiToken  The PawaPay API token.
-     * @param  PawaPayBaseUrl  $baseUrl  Sandbox or production URL.
-     * @return self A ready-to-use service instance.
+     * {@inheritDoc}
      */
+    public function handleCallback(
+        DepositCallbackStruct|PayoutCallbackStruct|RefundCallbackStruct|CheckoutCallbackStruct $struct,
+        HandlesCallbacksInterface $handler,
+    ): void {
+        $operation = $this->operationOf($struct);
+
+        $this->beforeHandleCallback($struct, $operation);
+
+        match (true) {
+            $struct instanceof DepositCallbackStruct => $handler->handleDeposit($struct),
+            $struct instanceof PayoutCallbackStruct => $handler->handlePayout($struct),
+            $struct instanceof RefundCallbackStruct => $handler->handleRefund($struct),
+            $struct instanceof CheckoutCallbackStruct => $handler->handleCheckout($struct),
+        };
+
+        $this->afterHandleCallback($struct, $operation);
+    }
+
     public static function create(string $apiToken, PawaPayBaseUrl $baseUrl): self
     {
         return new self(
@@ -204,108 +202,84 @@ class PawapayService implements PawapayInterface
     // HOOKS
     // ============================================================
 
-    /**
-     * Hook executed before initiating a deposit.
-     *
-     * @param  InitiateDepositRecord  $record  The deposit payload.
-     * @return ErrorResponseData|null Return an error to short-circuit, or null to continue.
-     */
     protected function beforeInitiateDeposit(InitiateDepositRecord $record): ?ErrorResponseData
     {
         return null;
     }
 
-    /**
-     * Hook executed after initiating a deposit.
-     *
-     * @param  InitiateDepositRecord  $record  The deposit payload.
-     * @param  InitiateDepositData  $data  The deposit data returned by PawaPay.
-     * @return ErrorResponseData|null Return an error to short-circuit, or null to continue.
-     */
     protected function afterInitiateDeposit(InitiateDepositRecord $record, InitiateDepositData $data): ?ErrorResponseData
     {
         return null;
     }
 
-    /**
-     * Hook executed before checking a deposit status.
-     *
-     * @param  CheckDepositStatusRecord  $record  The deposit identifier.
-     * @return ErrorResponseData|null Return an error to short-circuit, or null to continue.
-     */
     protected function beforeCheckDepositStatus(CheckDepositStatusRecord $record): ?ErrorResponseData
     {
         return null;
     }
 
-    /**
-     * Hook executed after checking a deposit status.
-     *
-     * @param  CheckDepositStatusRecord  $record  The deposit identifier.
-     * @param  CheckDepositStatusData  $data  The status data returned by PawaPay.
-     * @return ErrorResponseData|null Return an error to short-circuit, or null to continue.
-     */
     protected function afterCheckDepositStatus(CheckDepositStatusRecord $record, CheckDepositStatusData $data): ?ErrorResponseData
     {
         return null;
     }
 
-    /**
-     * Hook executed before resending a deposit callback.
-     *
-     * @param  ResendDepositCallbackRecord  $record  The deposit identifier.
-     * @return ErrorResponseData|null Return an error to short-circuit, or null to continue.
-     */
     protected function beforeResendDepositCallback(ResendDepositCallbackRecord $record): ?ErrorResponseData
     {
         return null;
     }
 
-    /**
-     * Hook executed after resending a deposit callback.
-     *
-     * @param  ResendDepositCallbackRecord  $record  The deposit identifier.
-     * @param  ResendDepositCallbackData  $data  The resend result returned by PawaPay.
-     * @return ErrorResponseData|null Return an error to short-circuit, or null to continue.
-     */
     protected function afterResendDepositCallback(ResendDepositCallbackRecord $record, ResendDepositCallbackData $data): ?ErrorResponseData
     {
         return null;
     }
 
-    /**
-     * Hook executed before creating a payment page.
-     *
-     * @param  CreatePaymentPageRecord  $record  The payment page payload.
-     * @return ErrorResponseData|null Return an error to short-circuit, or null to continue.
-     */
     protected function beforeCreatePaymentPage(CreatePaymentPageRecord $record): ?ErrorResponseData
     {
         return null;
     }
 
-    /**
-     * Hook executed after creating a payment page.
-     *
-     * @param  CreatePaymentPageRecord  $record  The payment page payload.
-     * @param  CreatePaymentPageData  $data  The payment page data returned by PawaPay.
-     * @return ErrorResponseData|null Return an error to short-circuit, or null to continue.
-     */
     protected function afterCreatePaymentPage(CreatePaymentPageRecord $record, CreatePaymentPageData $data): ?ErrorResponseData
     {
         return null;
     }
+
+    /**
+     * Hook executed before dispatching a callback to the handler.
+     *
+     * @param  CallbackOperationType  $operation  The detected operation type.
+     */
+    protected function beforeHandleCallback(
+        DepositCallbackStruct|PayoutCallbackStruct|RefundCallbackStruct|CheckoutCallbackStruct $struct,
+        CallbackOperationType $operation,
+    ): void {}
+
+    /**
+     * Hook executed after dispatching a callback to the handler.
+     *
+     * @param  CallbackOperationType  $operation  The detected operation type.
+     */
+    protected function afterHandleCallback(
+        DepositCallbackStruct|PayoutCallbackStruct|RefundCallbackStruct|CheckoutCallbackStruct $struct,
+        CallbackOperationType $operation,
+    ): void {}
 
     // ============================================================
     // CONVERSIONS
     // ============================================================
 
     /**
-     * Convert a PawaPay failure reason struct into its typed data counterpart.
-     *
-     * @param  FailureReasonStruct|null  $reason  The failure reason returned by PawaPay, if any.
-     * @return FailureReasonData|null The typed failure reason, or null when absent.
+     * Resolve the CallbackOperationType from a typed callback struct.
      */
+    private function operationOf(
+        DepositCallbackStruct|PayoutCallbackStruct|RefundCallbackStruct|CheckoutCallbackStruct $struct,
+    ): CallbackOperationType {
+        return match (true) {
+            $struct instanceof DepositCallbackStruct => CallbackOperationType::DEPOSIT,
+            $struct instanceof PayoutCallbackStruct => CallbackOperationType::PAYOUT,
+            $struct instanceof RefundCallbackStruct => CallbackOperationType::REFUND,
+            $struct instanceof CheckoutCallbackStruct => CallbackOperationType::CHECKOUT,
+        };
+    }
+
     private function failureReasonToData(?FailureReasonStruct $reason): ?FailureReasonData
     {
         if ($reason === null) {

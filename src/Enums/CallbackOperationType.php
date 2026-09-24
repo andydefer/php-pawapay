@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace AndyDefer\PhpPawapay\Enums;
 
+use AndyDefer\PhpClient\Abstracts\Struct;
+use AndyDefer\PhpPawapay\Structures\Callbacks\CheckoutCallbackStruct;
+use AndyDefer\PhpPawapay\Structures\Callbacks\DepositCallbackStruct;
+use AndyDefer\PhpPawapay\Structures\Callbacks\PayoutCallbackStruct;
+use AndyDefer\PhpPawapay\Structures\Callbacks\RefundCallbackStruct;
 use InvalidArgumentException;
 
 enum CallbackOperationType: string
@@ -30,6 +35,21 @@ enum CallbackOperationType: string
             default => throw new InvalidArgumentException(
                 'Unknown Pawapay callback payload: no discriminating field found.'
             ),
+        };
+    }
+
+    /**
+     * Returns the Struct class associated with this operation.
+     *
+     * @return class-string<Struct>
+     */
+    public function structClass(): string
+    {
+        return match ($this) {
+            self::DEPOSIT => DepositCallbackStruct::class,
+            self::PAYOUT => PayoutCallbackStruct::class,
+            self::REFUND => RefundCallbackStruct::class,
+            self::CHECKOUT => CheckoutCallbackStruct::class,
         };
     }
 }

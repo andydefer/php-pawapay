@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace AndyDefer\PhpPawapay\Builders;
 
-use AndyDefer\PhpPawapay\Contracts\Callbacks\HandlesCallbacks;
+use AndyDefer\PhpPawapay\Contracts\Callbacks\HandlesCallbacksInterface;
 use AndyDefer\PhpPawapay\Enums\CallbackOperationType;
 use AndyDefer\PhpPawapay\Structures\Callbacks\CheckoutCallbackStruct;
 use AndyDefer\PhpPawapay\Structures\Callbacks\DepositCallbackStruct;
@@ -14,9 +14,9 @@ use InvalidArgumentException;
 
 final class CallbackBuilder
 {
-    private ?HandlesCallbacks $handler = null;
+    private ?HandlesCallbacksInterface $handler = null;
 
-    public function withHandler(HandlesCallbacks $handler): self
+    public function withHandler(HandlesCallbacksInterface $handler): self
     {
         $this->handler = $handler;
 

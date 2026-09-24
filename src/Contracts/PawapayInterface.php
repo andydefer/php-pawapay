@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace AndyDefer\PhpPawapay\Contracts;
 
+use AndyDefer\PhpPawapay\Contracts\Callbacks\HandlesCallbacksInterface;
 use AndyDefer\PhpPawapay\Datas\CheckDepositStatusData;
 use AndyDefer\PhpPawapay\Datas\CreatePaymentPageData;
 use AndyDefer\PhpPawapay\Datas\ErrorResponseData;
@@ -13,6 +14,10 @@ use AndyDefer\PhpPawapay\Records\CheckDepositStatusRecord;
 use AndyDefer\PhpPawapay\Records\CreatePaymentPageRecord;
 use AndyDefer\PhpPawapay\Records\InitiateDepositRecord;
 use AndyDefer\PhpPawapay\Records\ResendDepositCallbackRecord;
+use AndyDefer\PhpPawapay\Structures\Callbacks\CheckoutCallbackStruct;
+use AndyDefer\PhpPawapay\Structures\Callbacks\DepositCallbackStruct;
+use AndyDefer\PhpPawapay\Structures\Callbacks\PayoutCallbackStruct;
+use AndyDefer\PhpPawapay\Structures\Callbacks\RefundCallbackStruct;
 
 /**
  * Contract for the PawaPay service.
@@ -22,35 +27,24 @@ use AndyDefer\PhpPawapay\Records\ResendDepositCallbackRecord;
  */
 interface PawapayInterface
 {
-    /**
-     * Initiate a Mobile Money deposit.
-     *
-     * @param  InitiateDepositRecord  $record  The deposit payload.
-     * @return InitiateDepositData|ErrorResponseData The deposit data, or an error response if blocked.
-     */
     public function initiateDeposit(InitiateDepositRecord $record): InitiateDepositData|ErrorResponseData;
 
-    /**
-     * Check the status of an existing deposit.
-     *
-     * @param  CheckDepositStatusRecord  $record  The deposit identifier.
-     * @return CheckDepositStatusData|ErrorResponseData The status data, or an error response if blocked.
-     */
     public function checkDepositStatus(CheckDepositStatusRecord $record): CheckDepositStatusData|ErrorResponseData;
 
-    /**
-     * Ask PawaPay to resend the callback of a deposit.
-     *
-     * @param  ResendDepositCallbackRecord  $record  The deposit identifier.
-     * @return ResendDepositCallbackData|ErrorResponseData The resend result, or an error response if blocked.
-     */
     public function resendDepositCallback(ResendDepositCallbackRecord $record): ResendDepositCallbackData|ErrorResponseData;
 
-    /**
-     * Create a PawaPay-hosted payment page.
-     *
-     * @param  CreatePaymentPageRecord  $record  The payment page payload.
-     * @return CreatePaymentPageData|ErrorResponseData The payment page data, or an error response if blocked.
-     */
     public function createPaymentPage(CreatePaymentPageRecord $record): CreatePaymentPageData|ErrorResponseData;
+
+    /**
+     * Handle an incoming PawaPay callback.
+     *
+     * Accepts any of the four typed callback structs. The operation is
+     * dispatched to the corresponding handler method.
+     *
+     * @param  HandlesCallbacksInterface  $handler  The handler that will process the callback.
+     */
+    public function handleCallback(
+        DepositCallbackStruct|PayoutCallbackStruct|RefundCallbackStruct|CheckoutCallbackStruct $struct,
+        HandlesCallbacksInterface $handler,
+    ): void;
 }

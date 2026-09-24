@@ -32,11 +32,11 @@ composer require andydefer/php-pawapay
 
 ## API / Méthodes publiques
 
-### `withHandler(HandlesCallbacks $handler): self`
+### `withHandler(HandlesCallbacksInterface $handler): self`
 
 | Paramètre | Type | Description |
 |-----------|------|-------------|
-| `$handler` | `HandlesCallbacks` | Handler qui recevra le `Struct` hydraté |
+| `$handler` | `HandlesCallbacksInterface` | Handler qui recevra le `Struct` hydraté |
 
 **Retourne :** `self` — Instance courante pour chaînage.
 
@@ -106,7 +106,7 @@ use AndyDefer\PhpPawapay\Builders\CallbackBuilder;
 $payload = json_decode($request->getContent(), true);
 
 CallbackBuilder::create()
-    ->withHandler(app(HandlesCallbacks::class))
+    ->withHandler(app(HandlesCallbacksInterface::class))
     ->execute($payload);
 ```
 
@@ -122,13 +122,13 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use AndyDefer\PhpPawapay\Builders\CallbackBuilder;
-use AndyDefer\PhpPawapay\Contracts\Callbacks\HandlesCallbacks;
+use AndyDefer\PhpPawapay\Contracts\Callbacks\HandlesCallbacksInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 final class PawapayCallbackController
 {
-    public function __invoke(Request $request, HandlesCallbacks $handler): JsonResponse
+    public function __invoke(Request $request, HandlesCallbacksInterface $handler): JsonResponse
     {
         $payload = $request->json()->all();
 
@@ -154,13 +154,13 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use AndyDefer\PhpPawapay\Contracts\Callbacks\HandlesCallbacks;
+use AndyDefer\PhpPawapay\Contracts\Callbacks\HandlesCallbacksInterface;
 use AndyDefer\PhpPawapay\Structures\Callbacks\CheckoutCallbackStruct;
 use AndyDefer\PhpPawapay\Structures\Callbacks\DepositCallbackStruct;
 use AndyDefer\PhpPawapay\Structures\Callbacks\PayoutCallbackStruct;
 use AndyDefer\PhpPawapay\Structures\Callbacks\RefundCallbackStruct;
 
-final class DepositOnlyHandler implements HandlesCallbacks
+final class DepositOnlyHandler implements HandlesCallbacksInterface
 {
     public function handleDeposit(DepositCallbackStruct $struct): void
     {
@@ -211,7 +211,7 @@ execute($payload)
 | Composant | Rôle |
 |-----------|------|
 | `CallbackOperationType` | Enum qui expose `fromPayload()` pour la détection |
-| `HandlesCallbacks` | Interface obligatoire pour le handler |
+| `HandlesCallbacksInterface` | Interface obligatoire pour le handler |
 | `DepositCallbackStruct` | Struct hydraté pour l'opération `DEPOSIT` |
 | `PayoutCallbackStruct` | Struct hydraté pour l'opération `PAYOUT` |
 | `RefundCallbackStruct` | Struct hydraté pour l'opération `REFUND` |
@@ -241,13 +241,13 @@ Le builder ne connaît ni HTTP, ni framework, ni stockage. Il opère uniquement 
 declare(strict_types=1);
 
 use AndyDefer\PhpPawapay\Builders\CallbackBuilder;
-use AndyDefer\PhpPawapay\Contracts\Callbacks\HandlesCallbacks;
+use AndyDefer\PhpPawapay\Contracts\Callbacks\HandlesCallbacksInterface;
 use AndyDefer\PhpPawapay\Structures\Callbacks\CheckoutCallbackStruct;
 use AndyDefer\PhpPawapay\Structures\Callbacks\DepositCallbackStruct;
 use AndyDefer\PhpPawapay\Structures\Callbacks\PayoutCallbackStruct;
 use AndyDefer\PhpPawapay\Structures\Callbacks\RefundCallbackStruct;
 
-$handler = new class implements HandlesCallbacks {
+$handler = new class implements HandlesCallbacksInterface {
     public function handleDeposit(DepositCallbackStruct $struct): void
     {
         echo "Deposit {$struct->depositId->getValue()} : {$struct->status->value}\n";
@@ -298,7 +298,7 @@ CallbackBuilder::create()
 ## Voir aussi
 
 - `CallbackOperationType` - Enum de détection du type d'opération
-- `HandlesCallbacks` - Interface du handler
+- `HandlesCallbacksInterface` - Interface du handler
 - `DepositCallbackStruct` - Struct du callback dépôt
 - `PayoutCallbackStruct` - Struct du callback payout
 - `RefundCallbackStruct` - Struct du callback refund

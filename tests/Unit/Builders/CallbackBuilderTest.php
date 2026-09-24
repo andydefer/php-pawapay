@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Builders;
 
 use AndyDefer\PhpPawapay\Builders\CallbackBuilder;
-use AndyDefer\PhpPawapay\Contracts\Callbacks\HandlesCallbacks;
+use AndyDefer\PhpPawapay\Contracts\Callbacks\HandlesCallbacksInterface;
 use AndyDefer\PhpPawapay\Structures\Callbacks\CheckoutCallbackStruct;
 use AndyDefer\PhpPawapay\Structures\Callbacks\DepositCallbackStruct;
 use AndyDefer\PhpPawapay\Structures\Callbacks\PayoutCallbackStruct;
@@ -199,9 +199,9 @@ final class CallbackBuilderTest extends TestCase
     /**
      * Retourne un handler espion qui capture la méthode appelée et le Struct reçu.
      */
-    private function spyHandler(): HandlesCallbacks
+    private function spyHandler(): HandlesCallbacksInterface
     {
-        return new class implements HandlesCallbacks
+        return new class implements HandlesCallbacksInterface
         {
             public ?DepositCallbackStruct $deposit = null;
 

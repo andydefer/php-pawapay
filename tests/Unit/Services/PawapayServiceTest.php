@@ -6,11 +6,13 @@ namespace AndyDefer\PhpPawapay\Tests\Unit\Services;
 
 use AndyDefer\DomainStructures\Utils\StrictDataObject;
 use AndyDefer\PhpClient\ValueObjects\UrlVO;
+use AndyDefer\PhpPawapay\Contracts\Callbacks\HandlesCallbacksInterface;
 use AndyDefer\PhpPawapay\Datas\CheckDepositStatusData;
 use AndyDefer\PhpPawapay\Datas\CreatePaymentPageData;
 use AndyDefer\PhpPawapay\Datas\ErrorResponseData;
 use AndyDefer\PhpPawapay\Datas\InitiateDepositData;
 use AndyDefer\PhpPawapay\Datas\ResendDepositCallbackData;
+use AndyDefer\PhpPawapay\Enums\CallbackOperationType;
 use AndyDefer\PhpPawapay\Enums\Country;
 use AndyDefer\PhpPawapay\Enums\Currency;
 use AndyDefer\PhpPawapay\Enums\DepositSearchStatus;
@@ -26,7 +28,12 @@ use AndyDefer\PhpPawapay\Records\CreatePaymentPageRecord;
 use AndyDefer\PhpPawapay\Records\InitiateDepositRecord;
 use AndyDefer\PhpPawapay\Records\ResendDepositCallbackRecord;
 use AndyDefer\PhpPawapay\Services\PawapayService;
+use AndyDefer\PhpPawapay\Structures\Callbacks\CheckoutCallbackStruct;
+use AndyDefer\PhpPawapay\Structures\Callbacks\DepositCallbackStruct;
+use AndyDefer\PhpPawapay\Structures\Callbacks\PayoutCallbackStruct;
+use AndyDefer\PhpPawapay\Structures\Callbacks\RefundCallbackStruct;
 use AndyDefer\PhpPawapay\Tests\Fixtures\Service\ErroringPawapayService;
+use AndyDefer\PhpPawapay\Tests\Fixtures\Service\RecordingPawapayService;
 use AndyDefer\PhpPawapay\Tests\MockPawapayClient;
 use AndyDefer\PhpPawapay\ValueObjects\AccountDetailsVO;
 use AndyDefer\PhpPawapay\ValueObjects\AmountVO;
@@ -559,5 +566,282 @@ final class PawapayServiceTest extends TestCase
         $this->assertSame('Rejected after page creation', $result->message);
         $this->assertSame(HttpStatusCode::UNPROCESSABLE_ENTITY, $result->status);
         $this->assertSame('AFTER_PAGE_REJECTED', $result->errorCode);
+    }
+
+    // ==================== HANDLE CALLBACK ====================
+
+    public function test_handle_callback_dispatches_deposit(): void
+    {
+        // Arrange: build a deposit callback struct and a spy handler
+        $handler = $this->spyHandler();
+
+        $struct = DepositCallbackStruct::from([
+            'depositId' => 'f4401bd2-1568-4140-bf2d-eb77d2b2b639',
+            'status' => 'COMPLETED',
+            'amount' => '123.00',
+            'currency' => 'ZMW',
+            'country' => 'ZMB',
+            'payer' => [
+                'type' => 'MMO',
+                'accountDetails' => [
+                    'phoneNumber' => '260763456789',
+                    'provider' => 'MTN_MOMO_ZMB',
+                ],
+            ],
+            'customerMessage' => 'To ACME company',
+            'clientReferenceId' => 'REF-987654321',
+            'created' => '2020-10-19T08:17:01Z',
+            'providerTransactionId' => '12356789',
+        ]);
+
+        // Act
+        $this->service->handleCallback($struct, $handler);
+
+        // Assert: only handleDeposit was called with the right struct
+        $this->assertSame($struct, $handler->deposit);
+        $this->assertNull($handler->payout);
+        $this->assertNull($handler->refund);
+        $this->assertNull($handler->checkout);
+    }
+
+    public function test_handle_callback_dispatches_payout(): void
+    {
+        // Arrange: build a payout callback struct and a spy handler
+        $handler = $this->spyHandler();
+
+        $struct = PayoutCallbackStruct::from([
+            'payoutId' => '6f53f5f3-2f97-4879-8ed6-50072fe9d2fc',
+            'status' => 'COMPLETED',
+            'amount' => '100.00',
+            'currency' => 'ZMW',
+            'recipient' => [
+                'type' => 'MMO',
+                'accountDetails' => [
+                    'phoneNumber' => '260973024456',
+                    'provider' => 'MTN_MOMO_ZMB',
+                ],
+            ],
+            'clientReferenceId' => 'REF-987654321',
+            'customerMessage' => 'To ACME company',
+            'providerTransactionId' => '12356789',
+            'created' => '2025-01-15T10:35:00Z',
+        ]);
+
+        // Act
+        $this->service->handleCallback($struct, $handler);
+
+        // Assert
+        $this->assertSame($struct, $handler->payout);
+        $this->assertNull($handler->deposit);
+        $this->assertNull($handler->refund);
+        $this->assertNull($handler->checkout);
+    }
+
+    public function test_handle_callback_dispatches_refund(): void
+    {
+        // Arrange: build a refund callback struct and a spy handler
+        $handler = $this->spyHandler();
+
+        $struct = RefundCallbackStruct::from([
+            'refundId' => 'a1b2c3d4-1111-2222-3333-444455556666',
+            'status' => 'COMPLETED',
+            'amount' => '100.00',
+            'currency' => 'ZMW',
+            'clientReferenceId' => 'REF-987654321',
+            'created' => '2025-01-15T10:35:00Z',
+        ]);
+
+        // Act
+        $this->service->handleCallback($struct, $handler);
+
+        // Assert
+        $this->assertSame($struct, $handler->refund);
+        $this->assertNull($handler->deposit);
+        $this->assertNull($handler->payout);
+        $this->assertNull($handler->checkout);
+    }
+
+    public function test_handle_callback_dispatches_checkout(): void
+    {
+        // Arrange: build a checkout callback struct and a spy handler
+        $handler = $this->spyHandler();
+
+        $struct = CheckoutCallbackStruct::from([
+            'checkoutId' => 'afb57b93-7849-49aa-babb-4c3ccbfe3d79',
+            'status' => 'COMPLETED',
+            'depositStatus' => 'COMPLETED',
+            'deposit' => [
+                'depositId' => 'eac4d2f3-cf36-4a24-a9eb-7014c630f8f0',
+                'status' => 'COMPLETED',
+                'amount' => '100.00',
+                'currency' => 'ZMW',
+                'country' => 'ZMB',
+                'payer' => [
+                    'type' => 'MMO',
+                    'accountDetails' => [
+                        'phoneNumber' => '260973024434',
+                        'provider' => 'MTN_MOMO_ZMB',
+                    ],
+                ],
+                'customerMessage' => 'Checkout payment',
+                'clientReferenceId' => 'REF-987654321',
+                'created' => '2025-01-15T10:35:00Z',
+                'providerTransactionId' => '12356789',
+            ],
+            'depositsHistory' => [],
+        ]);
+
+        // Act
+        $this->service->handleCallback($struct, $handler);
+
+        // Assert
+        $this->assertSame($struct, $handler->checkout);
+        $this->assertNull($handler->deposit);
+        $this->assertNull($handler->payout);
+        $this->assertNull($handler->refund);
+    }
+
+    public function test_handle_callback_invokes_before_hook_before_dispatch(): void
+    {
+        // Arrange
+        $handler = $this->spyHandler();
+
+        $struct = DepositCallbackStruct::from([
+            'depositId' => 'f4401bd2-1568-4140-bf2d-eb77d2b2b639',
+            'status' => 'COMPLETED',
+            'amount' => '123.00',
+            'currency' => 'ZMW',
+            'country' => 'ZMB',
+            'payer' => [
+                'type' => 'MMO',
+                'accountDetails' => [
+                    'phoneNumber' => '260763456789',
+                    'provider' => 'MTN_MOMO_ZMB',
+                ],
+            ],
+            'customerMessage' => 'To ACME company',
+            'clientReferenceId' => 'REF-987654321',
+            'created' => '2020-10-19T08:17:01Z',
+            'providerTransactionId' => '12356789',
+        ]);
+
+        $service = new RecordingPawapayService($this->client);
+
+        // Act
+        $service->handleCallback($struct, $handler);
+
+        // Assert: before ran, then after; dispatch occurred in between via the handler
+        $this->assertSame(['before', 'after'], $service->calls);
+        $this->assertSame(CallbackOperationType::DEPOSIT, $service->beforeOperation);
+        $this->assertSame(CallbackOperationType::DEPOSIT, $service->afterOperation);
+        $this->assertSame($struct, $handler->deposit);
+    }
+
+    public function test_handle_callback_passes_operation_type_to_before_hook(): void
+    {
+        // Arrange
+        $handler = $this->spyHandler();
+
+        $struct = PayoutCallbackStruct::from([
+            'payoutId' => '6f53f5f3-2f97-4879-8ed6-50072fe9d2fc',
+            'status' => 'COMPLETED',
+            'amount' => '100.00',
+            'currency' => 'ZMW',
+            'recipient' => [
+                'type' => 'MMO',
+                'accountDetails' => [
+                    'phoneNumber' => '260973024456',
+                    'provider' => 'MTN_MOMO_ZMB',
+                ],
+            ],
+            'clientReferenceId' => 'REF-987654321',
+            'customerMessage' => 'To ACME company',
+            'providerTransactionId' => '12356789',
+            'created' => '2025-01-15T10:35:00Z',
+        ]);
+
+        $service = new RecordingPawapayService($this->client);
+
+        // Act
+        $service->handleCallback($struct, $handler);
+
+        // Assert
+        $this->assertSame(CallbackOperationType::PAYOUT, $service->beforeOperation);
+    }
+
+    public function test_handle_callback_passes_operation_type_to_after_hook(): void
+    {
+        // Arrange
+        $handler = $this->spyHandler();
+
+        $struct = CheckoutCallbackStruct::from([
+            'checkoutId' => 'afb57b93-7849-49aa-babb-4c3ccbfe3d79',
+            'status' => 'COMPLETED',
+            'depositStatus' => 'COMPLETED',
+            'deposit' => [
+                'depositId' => 'eac4d2f3-cf36-4a24-a9eb-7014c630f8f0',
+                'status' => 'COMPLETED',
+                'amount' => '100.00',
+                'currency' => 'ZMW',
+                'country' => 'ZMB',
+                'payer' => [
+                    'type' => 'MMO',
+                    'accountDetails' => [
+                        'phoneNumber' => '260973024434',
+                        'provider' => 'MTN_MOMO_ZMB',
+                    ],
+                ],
+                'customerMessage' => 'Checkout payment',
+                'clientReferenceId' => 'REF-987654321',
+                'created' => '2025-01-15T10:35:00Z',
+                'providerTransactionId' => '12356789',
+            ],
+            'depositsHistory' => [],
+        ]);
+
+        $service = new RecordingPawapayService($this->client);
+
+        // Act
+        $service->handleCallback($struct, $handler);
+
+        // Assert
+        $this->assertSame(CallbackOperationType::CHECKOUT, $service->afterOperation);
+    }
+
+    /**
+     * Build a spy handler that captures the struct passed to each method.
+     */
+    private function spyHandler(): HandlesCallbacksInterface
+    {
+        return new class implements HandlesCallbacksInterface
+        {
+            public ?DepositCallbackStruct $deposit = null;
+
+            public ?PayoutCallbackStruct $payout = null;
+
+            public ?RefundCallbackStruct $refund = null;
+
+            public ?CheckoutCallbackStruct $checkout = null;
+
+            public function handleDeposit(DepositCallbackStruct $struct): void
+            {
+                $this->deposit = $struct;
+            }
+
+            public function handlePayout(PayoutCallbackStruct $struct): void
+            {
+                $this->payout = $struct;
+            }
+
+            public function handleRefund(RefundCallbackStruct $struct): void
+            {
+                $this->refund = $struct;
+            }
+
+            public function handleCheckout(CheckoutCallbackStruct $struct): void
+            {
+                $this->checkout = $struct;
+            }
+        };
     }
 }

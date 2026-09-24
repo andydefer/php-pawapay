@@ -9,7 +9,7 @@ use AndyDefer\PhpPawapay\Structures\Callbacks\DepositCallbackStruct;
 use AndyDefer\PhpPawapay\Structures\Callbacks\PayoutCallbackStruct;
 use AndyDefer\PhpPawapay\Structures\Callbacks\RefundCallbackStruct;
 
-interface HandlesCallbacks
+interface HandlesCallbacksInterface
 {
     public function handleDeposit(DepositCallbackStruct $struct): void;
 
