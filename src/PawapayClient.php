@@ -11,18 +11,22 @@ use AndyDefer\PhpPawapay\Contracts\PawapayClientInterface;
 use AndyDefer\PhpPawapay\Contracts\Responses\CheckDepositStatusResponseInterface;
 use AndyDefer\PhpPawapay\Contracts\Responses\CreatePaymentPageResponseInterface;
 use AndyDefer\PhpPawapay\Contracts\Responses\InitiateDepositResponseInterface;
+use AndyDefer\PhpPawapay\Contracts\Responses\PredictProviderResponseInterface;
 use AndyDefer\PhpPawapay\Contracts\Responses\ResendDepositCallbackResponseInterface;
 use AndyDefer\PhpPawapay\Enums\PawaPayBaseUrl;
 use AndyDefer\PhpPawapay\Requests\CheckDepositStatusRequest;
 use AndyDefer\PhpPawapay\Requests\CreatePaymentPageRequest;
 use AndyDefer\PhpPawapay\Requests\InitiateDepositRequest;
+use AndyDefer\PhpPawapay\Requests\PredictProviderRequest;
 use AndyDefer\PhpPawapay\Requests\ResendDepositCallbackRequest;
 use AndyDefer\PhpPawapay\Responses\CheckDepositStatusResponse;
 use AndyDefer\PhpPawapay\Responses\CreatePaymentPageResponse;
 use AndyDefer\PhpPawapay\Responses\InitiateDepositResponse;
+use AndyDefer\PhpPawapay\Responses\PredictProviderResponse;
 use AndyDefer\PhpPawapay\Responses\ResendDepositCallbackResponse;
 use AndyDefer\PhpPawapay\Structures\PaymentPageStruct;
 use AndyDefer\PhpPawapay\ValueObjects\InitiateDepositVO;
+use AndyDefer\PhpPawapay\ValueObjects\PhoneNumberVO;
 
 class PawapayClient implements PawapayClientInterface
 {
@@ -126,6 +130,27 @@ class PawapayClient implements PawapayClientInterface
             $request->getUrl()->getValue(),
             $request,
             CreatePaymentPageResponse::class
+        );
+    }
+
+    public function predictProvider(PhoneNumberVO $phoneNumber): PredictProviderResponseInterface
+    {
+        $request = new PredictProviderRequest($phoneNumber, $this->baseUrl);
+
+        $request->getHeaders()
+            ->setAuthorization($this->apiToken)
+            ->setContentType(ContentType::JSON)
+            ->setAccept(ContentType::JSON);
+
+        $request->getOptions()
+            ->setTimeout(30)
+            ->setConnectTimeout(10)
+            ->setHttpErrors(false);
+
+        return $this->client->post(
+            $request->getUrl()->getValue(),
+            $request,
+            PredictProviderResponse::class
         );
     }
 }

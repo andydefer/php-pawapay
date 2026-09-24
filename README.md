@@ -18,6 +18,7 @@
   - [Vérifier le statut d'un dépôt](#2-vérifier-le-statut-dun-dépôt)
   - [Renvoyer un callback](#3-renvoyer-un-callback-de-dépôt)
   - [Créer une page de paiement](#4-créer-une-page-de-paiement)
+  - [Prédire le provider d'un numéro](#5-prédire-le-provider-dun-numéro)
 - [Traitement des callbacks](#traitement-des-callbacks)
 - [Hooks applicatifs](#hooks-applicatifs)
 - [Value Objects](#value-objects)
@@ -198,7 +199,7 @@ use AndyDefer\PhpPawapay\ValueObjects\UuidVO;
 
 $data = $service->initiateDeposit(
     InitiateDepositRecord::from([
-        'depositId' => UuidVO::from('f4401bd2-1568-4140-bf2d-eb77d2b2b639'),
+        'depositId' => UuidVO::generate(),
         'payer' => PayerVO::from([
             'type' => PayerType::MMO,
             'accountDetails' => AccountDetailsVO::from([
@@ -373,6 +374,101 @@ exit;
 
 ---
 
+### 5. Prédire le provider d'un numéro
+
+Détermine le pays et le provider Mobile Money associés à un numéro de téléphone. Utile avant un dépôt ou un payout lorsque le provider n'est pas connu.
+
+**Endpoint :** `POST /v2/predict-provider`
+
+#### Avec la façade (recommandé)
+
+```php
+<?php
+
+declare(strict_types=1);
+
+use AndyDefer\PhpPawapay\Records\PredictProviderRecord;
+use AndyDefer\PhpPawapay\ValueObjects\PhoneNumberVO;
+
+$data = $service->predictProvider(
+    PredictProviderRecord::from([
+        'phoneNumber' => PhoneNumberVO::from('260763456789'),
+    ]),
+);
+
+if ($data->isFound) {
+    echo $data->provider->value;  // 'MTN_MOMO_ZMB'
+    echo $data->country->value;   // 'ZMB'
+} elseif ($data->hasFailureReason) {
+    echo $data->failureReason->failureCode->value;
+}
+```
+
+#### Avec le builder bas niveau
+
+```php
+<?php
+
+declare(strict_types=1);
+
+use AndyDefer\PhpPawapay\Builders\PredictProviderBuilder;
+use AndyDefer\PhpPawapay\Enums\PawaPayBaseUrl;
+
+$response = PredictProviderBuilder::create($apiToken)
+    ->withBaseUrl(PawaPayBaseUrl::SANDBOX)
+    ->withPhoneNumber('260763456789')
+    ->execute();
+
+if ($response->isFound()) {
+    echo $response->getProvider()->value;  // 'MTN_MOMO_ZMB'
+    echo $response->getCountry()->value;   // 'ZMB'
+}
+```
+
+#### Champs du `PredictProviderData` retourné
+
+| Propriété | Type | Description |
+|-----------|------|-------------|
+| `$country` | `?Country` | Code pays ISO 3166-1 alpha-3 |
+| `$provider` | `?Provider` | Provider Mobile Money identifié |
+| `$phoneNumber` | `?PhoneNumberVO` | Numéro normalisé E.164 sans `+` |
+| `$isFound` | `bool` | `true` si le provider a été identifié |
+| `$failureReason` | `?FailureReasonData` | Raison d'échec éventuelle |
+| `$hasFailureReason` | `bool` | `true` si une raison d'échec existe |
+
+#### Cas d'usage typique
+
+```php
+// 1. Résoudre dynamiquement le provider
+$prediction = $service->predictProvider(
+    PredictProviderRecord::from([
+        'phoneNumber' => PhoneNumberVO::from($userInput),
+    ]),
+);
+
+if (! $prediction->isFound) {
+    return response()->json(['error' => 'Pays non supporté'], 422);
+}
+
+// 2. Initier le dépôt avec le provider résolu
+$data = $service->initiateDeposit(
+    InitiateDepositRecord::from([
+        'depositId' => UuidVO::generate(),
+        'payer' => PayerVO::from([
+            'type' => PayerType::MMO,
+            'accountDetails' => AccountDetailsVO::from([
+                'phoneNumber' => $prediction->phoneNumber,
+                'provider' => $prediction->provider,
+            ]),
+        ]),
+        'amount' => AmountVO::from(15.00),
+        'currency' => Currency::ZMW,
+    ]),
+);
+```
+
+---
+
 ## Traitement des callbacks
 
 Pawapay envoie les callbacks (deposit, payout, refund, checkout) sur votre endpoint. Le SDK fournit deux façons de les traiter :
@@ -430,7 +526,7 @@ CallbackBuilder::create()
 
 ### Approche 2 — `PawapayService::handleCallback()` (Struct typé)
 
-L'appelant hydrates lui-même le `Struct` à partir du payload, puis le passe au service.
+L'appelant hydrate lui-même le `Struct` à partir du payload, puis le passe au service.
 
 ```php
 <?php
@@ -472,7 +568,7 @@ $pawapay->handleCallback($struct, new PawapayCallbackHandler());
 
 ## Hooks applicatifs
 
-`PawapayService` expose **10 hooks** surchargeables : 2 par opération métier + 2 pour les callbacks. Chaque hook `before*` / `after*` des opérations métier peut **court-circuiter** le flux en retournant un `ErrorResponseData`. Les hooks de callback retournent `void`.
+`PawapayService` expose **12 hooks** surchargeables : 2 par opération métier (5 opérations) + 2 pour les callbacks. Chaque hook `before*` / `after*` des opérations métier peut **court-circuiter** le flux en retournant un `ErrorResponseData`. Les hooks de callback retournent `void`.
 
 ### Opérations métier
 
@@ -486,6 +582,8 @@ $pawapay->handleCallback($struct, new PawapayCallbackHandler());
 | `afterResendDepositCallback` | `(ResendDepositCallbackRecord, ResendDepositCallbackData): ?ErrorResponseData` |
 | `beforeCreatePaymentPage` | `(CreatePaymentPageRecord): ?ErrorResponseData` |
 | `afterCreatePaymentPage` | `(CreatePaymentPageRecord, CreatePaymentPageData): ?ErrorResponseData` |
+| `beforePredictProvider` | `(PredictProviderRecord): ?ErrorResponseData` |
+| `afterPredictProvider` | `(PredictProviderRecord, PredictProviderData): ?ErrorResponseData` |
 
 ### Callbacks
 
@@ -561,13 +659,15 @@ Les Value Objects valident les données à leur construction. Une valeur invalid
 
 | VO | Validation | Exemple |
 |----|------------|---------|
-| `UuidVO` | Format UUID v4 | `UuidVO::from('f4401bd2-...')` |
+| `UuidVO` | Format UUID v4 | `UuidVO::from('f4401bd2-...')` ou `UuidVO::generate()` |
 | `PhoneNumberVO` | Format E.164 sans `+` | `PhoneNumberVO::from('260763456789')` |
 | `AmountVO` | Positif, 2 décimales max | `AmountVO::from(15.00)` |
 | `ReferenceVO` | 4 à 64 caractères | `ReferenceVO::from('INV-123456')` |
 | `CustomerMessageVO` | 4 à 22 caractères | `CustomerMessageVO::from('Payment order')` |
-| `MetadataVO` | 10 champs max, valeurs scalaires | `new MetadataVO($data)` |
+| `MetadataVO` | 1 à 10 champs, valeurs scalaires | `new MetadataVO($data)` |
 | `ClientReferenceIdVO` | 4 à 64 caractères, `a-z A-Z 0-9 -` | `new ClientReferenceIdVO('INV-123')` |
+
+> **`MetadataVO`** : refuse les `StrictDataObject` vides ou ne contenant que des clés exclues (`isPII`). Au moins un champ utile est requis.
 
 ---
 
@@ -582,7 +682,7 @@ Les Value Objects valident les données à leur construction. Une valeur invalid
 | `DepositStatus` | Statuts de dépôt | `ACCEPTED`, `COMPLETED`, `FAILED` |
 | `DepositSearchStatus` | Résultat de recherche | `FOUND`, `NOT_FOUND` |
 | `ResendCallbackStatus` | Résultat de renvoi | `ACCEPTED`, `REJECTED` |
-| `FailureCode` | Codes d'erreur normalisés | `INVALID_PHONE_NUMBER` |
+| `FailureCode` | Codes d'erreur normalisés | `INVALID_PHONE_NUMBER`, `INVALID_COUNTRY` |
 | `PawaPayBaseUrl` | URL de base | `SANDBOX`, `PRODUCTION` |
 | `CallbackOperationType` | Type de callback | `DEPOSIT`, `PAYOUT`, `REFUND`, `CHECKOUT` |
 
@@ -859,6 +959,7 @@ Documentation détaillée de chaque composant :
 - [`CheckDepositStatusBuilder`](docs/builders/CheckDepositStatusBuilder.md)
 - [`ResendDepositCallbackBuilder`](docs/builders/ResendDepositCallbackBuilder.md)
 - [`CreatePaymentPageBuilder`](docs/builders/CreatePaymentPageBuilder.md)
+- [`PredictProviderBuilder`](docs/builders/PredictProviderBuilder.md)
 - [`CallbackBuilder`](docs/builders/CallbackBuilder.md)
 
 ### Enums
@@ -876,6 +977,14 @@ Documentation détaillée de chaque composant :
 - [Records vs Data](docs/concepts/records-vs-data.md)
 - [Gestion des callbacks](docs/concepts/callbacks.md)
 - [Hooks applicatifs](docs/concepts/hooks.md)
+
+### Endpoints
+
+- [Initiate Deposit](docs/endpoints/initiate-deposit.md)
+- [Check Deposit Status](docs/endpoints/check-deposit-status.md)
+- [Resend Deposit Callback](docs/endpoints/resend-deposit-callback.md)
+- [Create Payment Page](docs/endpoints/create-payment-page.md)
+- [Predict Provider](docs/endpoints/predict-provider.md)
 
 ---
 

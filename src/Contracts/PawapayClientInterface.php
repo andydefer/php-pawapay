@@ -7,10 +7,12 @@ namespace AndyDefer\PhpPawapay\Contracts;
 use AndyDefer\PhpPawapay\Contracts\Responses\CheckDepositStatusResponseInterface;
 use AndyDefer\PhpPawapay\Contracts\Responses\CreatePaymentPageResponseInterface;
 use AndyDefer\PhpPawapay\Contracts\Responses\InitiateDepositResponseInterface;
+use AndyDefer\PhpPawapay\Contracts\Responses\PredictProviderResponseInterface;
 use AndyDefer\PhpPawapay\Contracts\Responses\ResendDepositCallbackResponseInterface;
 use AndyDefer\PhpPawapay\Enums\PawaPayBaseUrl;
 use AndyDefer\PhpPawapay\Structures\PaymentPageStruct;
 use AndyDefer\PhpPawapay\ValueObjects\InitiateDepositVO;
+use AndyDefer\PhpPawapay\ValueObjects\PhoneNumberVO;
 
 interface PawapayClientInterface
 {
@@ -23,4 +25,6 @@ interface PawapayClientInterface
     public function resendDepositCallback(string $depositId): ResendDepositCallbackResponseInterface;
 
     public function createPaymentPage(PaymentPageStruct $paymentPage): CreatePaymentPageResponseInterface;
+
+    public function predictProvider(PhoneNumberVO $phoneNumber): PredictProviderResponseInterface;
 }

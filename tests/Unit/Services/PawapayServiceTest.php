@@ -11,6 +11,7 @@ use AndyDefer\PhpPawapay\Datas\CheckDepositStatusData;
 use AndyDefer\PhpPawapay\Datas\CreatePaymentPageData;
 use AndyDefer\PhpPawapay\Datas\ErrorResponseData;
 use AndyDefer\PhpPawapay\Datas\InitiateDepositData;
+use AndyDefer\PhpPawapay\Datas\PredictProviderData;
 use AndyDefer\PhpPawapay\Datas\ResendDepositCallbackData;
 use AndyDefer\PhpPawapay\Enums\CallbackOperationType;
 use AndyDefer\PhpPawapay\Enums\Country;
@@ -26,6 +27,7 @@ use AndyDefer\PhpPawapay\Graphs\AmountDetailsGraph;
 use AndyDefer\PhpPawapay\Records\CheckDepositStatusRecord;
 use AndyDefer\PhpPawapay\Records\CreatePaymentPageRecord;
 use AndyDefer\PhpPawapay\Records\InitiateDepositRecord;
+use AndyDefer\PhpPawapay\Records\PredictProviderRecord;
 use AndyDefer\PhpPawapay\Records\ResendDepositCallbackRecord;
 use AndyDefer\PhpPawapay\Services\PawapayService;
 use AndyDefer\PhpPawapay\Structures\Callbacks\CheckoutCallbackStruct;
@@ -806,6 +808,232 @@ final class PawapayServiceTest extends TestCase
 
         // Assert
         $this->assertSame(CallbackOperationType::CHECKOUT, $service->afterOperation);
+    }
+
+    // ==================== PREDICT PROVIDER ====================
+
+    public function test_predict_provider_found_returns_data(): void
+    {
+        // Arrange: enqueue a canned 200 response identifying the provider
+        $this->client->addSuccessResponse([
+            'country' => 'ZMB',
+            'provider' => 'MTN_MOMO_ZMB',
+            'phoneNumber' => '260763456789',
+        ]);
+
+        // Act: call the service with a valid record
+        $data = $this->service->predictProvider(
+            PredictProviderRecord::from([
+                'phoneNumber' => PhoneNumberVO::from('260763456789'),
+            ]),
+        );
+
+        // Assert: the typed data exposes the predicted provider
+        $this->assertInstanceOf(PredictProviderData::class, $data);
+        $this->assertTrue($data->isFound);
+        $this->assertFalse($data->hasFailureReason);
+        $this->assertNull($data->failureReason);
+        $this->assertSame(Country::ZMB, $data->country);
+        $this->assertSame(Provider::MTN_MOMO_ZMB, $data->provider);
+        $this->assertNotNull($data->phoneNumber);
+        $this->assertSame('260763456789', $data->phoneNumber->getValue());
+    }
+
+    public function test_predict_provider_with_drc_vodacom(): void
+    {
+        // Arrange: enqueue a canned 200 response identifying Vodacom RDC
+        $this->client->addSuccessResponse([
+            'country' => 'COD',
+            'provider' => 'VODACOM_MPESA_COD',
+            'phoneNumber' => '243812345678',
+        ]);
+
+        // Act
+        $data = $this->service->predictProvider(
+            PredictProviderRecord::from([
+                'phoneNumber' => PhoneNumberVO::from('243812345678'),
+            ]),
+        );
+
+        // Assert
+        $this->assertTrue($data->isFound);
+        $this->assertSame(Country::COD, $data->country);
+        $this->assertSame(Provider::VODACOM_MPESA_COD, $data->provider);
+        $this->assertSame('243812345678', $data->phoneNumber->getValue());
+    }
+
+    public function test_predict_provider_not_found_returns_data(): void
+    {
+        // Arrange: enqueue a canned 200 response with an empty body
+        $this->client->addSuccessResponse([]);
+
+        // Act
+        $data = $this->service->predictProvider(
+            PredictProviderRecord::from([
+                'phoneNumber' => PhoneNumberVO::from('260763456789'),
+            ]),
+        );
+
+        // Assert: no provider identified, no failure reason
+        $this->assertFalse($data->isFound);
+        $this->assertFalse($data->hasFailureReason);
+        $this->assertNull($data->country);
+        $this->assertNull($data->provider);
+        $this->assertNull($data->phoneNumber);
+        $this->assertNull($data->failureReason);
+    }
+
+    public function test_predict_provider_invalid_input_returns_data(): void
+    {
+        // Arrange: enqueue a canned 400 response with INVALID_INPUT
+        $this->client->addSuccessResponse([
+            'failureReason' => [
+                'failureCode' => 'INVALID_INPUT',
+                'failureMessage' => 'We are unable to parse the body of the request. Please consult API documentation for valid request payload.',
+            ],
+        ]);
+
+        // Act
+        $data = $this->service->predictProvider(
+            PredictProviderRecord::from([
+                'phoneNumber' => PhoneNumberVO::from('260763456789'),
+            ]),
+        );
+
+        // Assert: failure reason is mapped into typed data
+        $this->assertFalse($data->isFound);
+        $this->assertTrue($data->hasFailureReason);
+        $this->assertNotNull($data->failureReason);
+        $this->assertSame(FailureCode::INVALID_INPUT, $data->failureReason->failureCode);
+        $this->assertSame(
+            'We are unable to parse the body of the request. Please consult API documentation for valid request payload.',
+            $data->failureReason->failureMessage,
+        );
+        $this->assertNull($data->country);
+        $this->assertNull($data->provider);
+        $this->assertNull($data->phoneNumber);
+    }
+
+    public function test_predict_provider_authentication_error_returns_data(): void
+    {
+        // Arrange: enqueue a canned 401 response
+        $this->client->addAuthenticationErrorResponse();
+
+        // Act
+        $data = $this->service->predictProvider(
+            PredictProviderRecord::from([
+                'phoneNumber' => PhoneNumberVO::from('260763456789'),
+            ]),
+        );
+
+        // Assert: the failure reason is mapped into typed data
+        $this->assertFalse($data->isFound);
+        $this->assertTrue($data->hasFailureReason);
+        $this->assertNotNull($data->failureReason);
+        $this->assertSame(FailureCode::AUTHENTICATION_ERROR, $data->failureReason->failureCode);
+        $this->assertSame('The API token in the request is invalid.', $data->failureReason->failureMessage);
+    }
+
+    public function test_predict_provider_authorisation_error_returns_data(): void
+    {
+        // Arrange: enqueue a canned 403 response
+        $this->client->addSuccessResponse([
+            'failureReason' => [
+                'failureCode' => 'AUTHORISATION_ERROR',
+                'failureMessage' => 'The API token in the request is not authorised for this endpoint.',
+            ],
+        ]);
+
+        // Act
+        $data = $this->service->predictProvider(
+            PredictProviderRecord::from([
+                'phoneNumber' => PhoneNumberVO::from('260763456789'),
+            ]),
+        );
+
+        // Assert
+        $this->assertFalse($data->isFound);
+        $this->assertTrue($data->hasFailureReason);
+        $this->assertNotNull($data->failureReason);
+        $this->assertSame(FailureCode::AUTHORISATION_ERROR, $data->failureReason->failureCode);
+    }
+
+    public function test_predict_provider_unknown_error_returns_data(): void
+    {
+        // Arrange: enqueue a canned 500 response
+        $this->client->addSuccessResponse([
+            'failureReason' => [
+                'failureCode' => 'UNKNOWN_ERROR',
+                'failureMessage' => 'Unable to process request due to an unknown problem.',
+            ],
+        ]);
+
+        // Act
+        $data = $this->service->predictProvider(
+            PredictProviderRecord::from([
+                'phoneNumber' => PhoneNumberVO::from('260763456789'),
+            ]),
+        );
+
+        // Assert
+        $this->assertFalse($data->isFound);
+        $this->assertTrue($data->hasFailureReason);
+        $this->assertNotNull($data->failureReason);
+        $this->assertSame(FailureCode::UNKNOWN_ERROR, $data->failureReason->failureCode);
+    }
+
+    public function test_predict_provider_returns_error_when_before_hook_short_circuits(): void
+    {
+        // Arrange: force the before hook to return an error
+        $service = new ErroringPawapayService($this->client);
+        $service->beforePredictProviderError = ErrorResponseData::from([
+            'message' => 'Prediction blocked',
+            'status' => HttpStatusCode::FORBIDDEN,
+            'errorCode' => 'PREDICT_BLOCKED',
+        ]);
+
+        // Act: call the service with a valid record
+        $result = $service->predictProvider(
+            PredictProviderRecord::from([
+                'phoneNumber' => PhoneNumberVO::from('260763456789'),
+            ]),
+        );
+
+        // Assert: the hook short-circuits the flow and returns the error
+        $this->assertInstanceOf(ErrorResponseData::class, $result);
+        $this->assertSame('Prediction blocked', $result->message);
+        $this->assertSame(HttpStatusCode::FORBIDDEN, $result->status);
+        $this->assertSame('PREDICT_BLOCKED', $result->errorCode);
+    }
+
+    public function test_predict_provider_returns_error_when_after_hook_short_circuits(): void
+    {
+        // Arrange: enqueue a canned success response and force the after hook to return an error
+        $this->client->addSuccessResponse([
+            'country' => 'ZMB',
+            'provider' => 'MTN_MOMO_ZMB',
+            'phoneNumber' => '260763456789',
+        ]);
+
+        $service = new ErroringPawapayService($this->client);
+        $service->afterPredictProviderError = ErrorResponseData::from([
+            'message' => 'Rejected after prediction',
+            'status' => HttpStatusCode::UNPROCESSABLE_ENTITY,
+            'errorCode' => 'AFTER_PREDICT_REJECTED',
+        ]);
+
+        // Act: call the service with a valid record
+        $result = $service->predictProvider(
+            PredictProviderRecord::from([
+                'phoneNumber' => PhoneNumberVO::from('260763456789'),
+            ]),
+        );
+
+        // Assert: the after hook short-circuits and returns the error
+        $this->assertInstanceOf(ErrorResponseData::class, $result);
+        $this->assertSame('Rejected after prediction', $result->message);
+        $this->assertSame(HttpStatusCode::UNPROCESSABLE_ENTITY, $result->status);
+        $this->assertSame('AFTER_PREDICT_REJECTED', $result->errorCode);
     }
 
     /**

@@ -27,6 +27,14 @@ final class UuidVO extends AbstractValueObject
         $this->value = $value;
     }
 
+    /**
+     * Generate a new UUID v4 value object.
+     */
+    public static function generate(): self
+    {
+        return new self(Uuid::uuid4()->toString());
+    }
+
     public function getValue(): ?string
     {
         return $this->value;

@@ -32,20 +32,28 @@ final class MetadataVOTest extends TestCase
 
         $metadata = new MetadataVO($data);
 
-        $this->assertNotNull($metadata->getValue());
         $this->assertSame(3, $metadata->count());
         $this->assertSame('ORD-123456', $metadata->get('orderId'));
         $this->assertTrue($metadata->has('product'));
         $this->assertFalse($metadata->isEmpty());
     }
 
-    public function test_metadata_vo_accepts_null(): void
+    public function test_metadata_vo_rejects_empty_data_object(): void
     {
-        $metadata = new MetadataVO(null);
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Metadata must contain at least 1 field, 0 given.');
 
-        $this->assertNull($metadata->getValue());
-        $this->assertSame(0, $metadata->count());
-        $this->assertTrue($metadata->isEmpty());
+        new MetadataVO(new StrictDataObject([]));
+    }
+
+    public function test_metadata_vo_rejects_only_excluded_keys(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Metadata must contain at least 1 field, 0 given.');
+
+        new MetadataVO(new StrictDataObject([
+            'isPII' => true,
+        ]));
     }
 
     public function test_metadata_vo_accepts_int_values(): void
@@ -114,15 +122,14 @@ final class MetadataVOTest extends TestCase
     public function test_metadata_vo_rejects_more_than_10_fields(): void
     {
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Metadata cannot exceed 10 fields');
+        $this->expectExceptionMessage('Metadata cannot exceed 10 fields, 11 given.');
 
         $dataArray = [];
         for ($i = 1; $i <= 11; $i++) {
             $dataArray["field_{$i}"] = "value_{$i}";
         }
 
-        $data = new StrictDataObject($dataArray);
-        new MetadataVO($data);
+        new MetadataVO(new StrictDataObject($dataArray));
     }
 
     public function test_metadata_vo_rejects_non_string_key(): void
@@ -133,8 +140,7 @@ final class MetadataVOTest extends TestCase
         $dataArray = [];
         $dataArray[123] = 'value';
 
-        $data = new StrictDataObject($dataArray);
-        new MetadataVO($data);
+        new MetadataVO(new StrictDataObject($dataArray));
     }
 
     public function test_metadata_vo_accepts_exactly_10_fields(): void
@@ -144,12 +150,30 @@ final class MetadataVOTest extends TestCase
             $dataArray["field_{$i}"] = "value_{$i}";
         }
 
-        $data = new StrictDataObject($dataArray);
-        $metadata = new MetadataVO($data);
+        $metadata = new MetadataVO(new StrictDataObject($dataArray));
 
         $this->assertSame(10, $metadata->count());
         $this->assertSame('value_1', $metadata->get('field_1'));
         $this->assertSame('value_10', $metadata->get('field_10'));
+    }
+
+    public function test_metadata_vo_strips_is_pii_key_from_get_value(): void
+    {
+        $data = new StrictDataObject([
+            'orderId' => 'ORD-123',
+            'isPII' => true,
+        ]);
+
+        $metadata = new MetadataVO($data);
+
+        // isPII is stripped before validation, so count is 1
+        $this->assertSame(1, $metadata->count());
+        $this->assertFalse($metadata->has('isPII'));
+        $this->assertTrue($metadata->has('orderId'));
+
+        // getValue() returns a Sequential containing only orderId
+        $sequential = $metadata->getValue();
+        $this->assertCount(1, $sequential->toArray());
     }
 
     public function test_metadata_vo_has_returns_false_for_nonexistent_key(): void
@@ -174,22 +198,25 @@ final class MetadataVOTest extends TestCase
         $this->assertNull($metadata->get('nonexistent'));
     }
 
-    public function test_metadata_vo_to_array_returns_null_when_empty(): void
-    {
-        $metadata = new MetadataVO(null);
-
-        $this->assertNull($metadata->toArray());
-    }
-
-    public function test_metadata_vo_to_array_returns_array_when_not_empty(): void
+    public function test_metadata_vo_to_array_returns_array_without_excluded_keys(): void
     {
         $data = new StrictDataObject([
             'orderId' => 'ORD-123',
+            'isPII' => true,
         ]);
 
         $metadata = new MetadataVO($data);
 
         $this->assertSame(['orderId' => 'ORD-123'], $metadata->toArray());
+    }
+
+    public function test_metadata_vo_is_empty_returns_false_for_valid_instance(): void
+    {
+        $metadata = new MetadataVO(new StrictDataObject([
+            'orderId' => 'ORD-123',
+        ]));
+
+        $this->assertFalse($metadata->isEmpty());
     }
 
     public function test_metadata_vo_can_be_used_in_deposit_struct(): void

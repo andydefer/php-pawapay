@@ -9,10 +9,12 @@ use AndyDefer\PhpPawapay\Datas\CheckDepositStatusData;
 use AndyDefer\PhpPawapay\Datas\CreatePaymentPageData;
 use AndyDefer\PhpPawapay\Datas\ErrorResponseData;
 use AndyDefer\PhpPawapay\Datas\InitiateDepositData;
+use AndyDefer\PhpPawapay\Datas\PredictProviderData;
 use AndyDefer\PhpPawapay\Datas\ResendDepositCallbackData;
 use AndyDefer\PhpPawapay\Records\CheckDepositStatusRecord;
 use AndyDefer\PhpPawapay\Records\CreatePaymentPageRecord;
 use AndyDefer\PhpPawapay\Records\InitiateDepositRecord;
+use AndyDefer\PhpPawapay\Records\PredictProviderRecord;
 use AndyDefer\PhpPawapay\Records\ResendDepositCallbackRecord;
 use AndyDefer\PhpPawapay\Structures\Callbacks\CheckoutCallbackStruct;
 use AndyDefer\PhpPawapay\Structures\Callbacks\DepositCallbackStruct;
@@ -34,6 +36,14 @@ interface PawapayInterface
     public function resendDepositCallback(ResendDepositCallbackRecord $record): ResendDepositCallbackData|ErrorResponseData;
 
     public function createPaymentPage(CreatePaymentPageRecord $record): CreatePaymentPageData|ErrorResponseData;
+
+    /**
+     * Predict the Mobile Money provider and country for a given phone number.
+     *
+     * @param  PredictProviderRecord  $record  The phone number to analyze.
+     * @return PredictProviderData|ErrorResponseData The prediction, or an error response if blocked.
+     */
+    public function predictProvider(PredictProviderRecord $record): PredictProviderData|ErrorResponseData;
 
     /**
      * Handle an incoming PawaPay callback.

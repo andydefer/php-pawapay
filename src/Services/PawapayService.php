@@ -12,6 +12,7 @@ use AndyDefer\PhpPawapay\Datas\CreatePaymentPageData;
 use AndyDefer\PhpPawapay\Datas\ErrorResponseData;
 use AndyDefer\PhpPawapay\Datas\FailureReasonData;
 use AndyDefer\PhpPawapay\Datas\InitiateDepositData;
+use AndyDefer\PhpPawapay\Datas\PredictProviderData;
 use AndyDefer\PhpPawapay\Datas\ResendDepositCallbackData;
 use AndyDefer\PhpPawapay\Enums\CallbackOperationType;
 use AndyDefer\PhpPawapay\Enums\PawaPayBaseUrl;
@@ -19,6 +20,7 @@ use AndyDefer\PhpPawapay\PawapayClient;
 use AndyDefer\PhpPawapay\Records\CheckDepositStatusRecord;
 use AndyDefer\PhpPawapay\Records\CreatePaymentPageRecord;
 use AndyDefer\PhpPawapay\Records\InitiateDepositRecord;
+use AndyDefer\PhpPawapay\Records\PredictProviderRecord;
 use AndyDefer\PhpPawapay\Records\ResendDepositCallbackRecord;
 use AndyDefer\PhpPawapay\Structures\Callbacks\CheckoutCallbackStruct;
 use AndyDefer\PhpPawapay\Structures\Callbacks\DepositCallbackStruct;
@@ -150,6 +152,7 @@ class PawapayService implements PawapayInterface
             'language' => $record->language,
             'country' => $record->country,
             'customerMessage' => $record->customerMessage,
+            'reason' => $record->customerMessage,
             'metadata' => $record->metadata,
         ]);
 
@@ -170,9 +173,34 @@ class PawapayService implements PawapayInterface
         return $data;
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    public function predictProvider(PredictProviderRecord $record): PredictProviderData|ErrorResponseData
+    {
+        $before = $this->beforePredictProvider($record);
+
+        if ($before instanceof ErrorResponseData) {
+            return $before;
+        }
+
+        $response = $this->client->predictProvider($record->phoneNumber);
+
+        $data = PredictProviderData::from([
+            'country' => $response->getCountry(),
+            'provider' => $response->getProvider(),
+            'phoneNumber' => $response->getPhoneNumber(),
+            'isFound' => $response->isFound(),
+            'failureReason' => $this->failureReasonToData($response->getFailureReason()),
+            'hasFailureReason' => $response->hasFailureReason(),
+        ]);
+
+        $after = $this->afterPredictProvider($record, $data);
+
+        if ($after instanceof ErrorResponseData) {
+            return $after;
+        }
+
+        return $data;
+    }
+
     public function handleCallback(
         DepositCallbackStruct|PayoutCallbackStruct|RefundCallbackStruct|CheckoutCallbackStruct $struct,
         HandlesCallbacksInterface $handler,
@@ -242,6 +270,16 @@ class PawapayService implements PawapayInterface
         return null;
     }
 
+    protected function beforePredictProvider(PredictProviderRecord $record): ?ErrorResponseData
+    {
+        return null;
+    }
+
+    protected function afterPredictProvider(PredictProviderRecord $record, PredictProviderData $data): ?ErrorResponseData
+    {
+        return null;
+    }
+
     /**
      * Hook executed before dispatching a callback to the handler.
      *
@@ -266,9 +304,6 @@ class PawapayService implements PawapayInterface
     // CONVERSIONS
     // ============================================================
 
-    /**
-     * Resolve the CallbackOperationType from a typed callback struct.
-     */
     private function operationOf(
         DepositCallbackStruct|PayoutCallbackStruct|RefundCallbackStruct|CheckoutCallbackStruct $struct,
     ): CallbackOperationType {

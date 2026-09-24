@@ -40,8 +40,6 @@ final class MockPawapayClient extends PawapayClient
     public function addErrorResponse(int $status, string $failureCode, string $failureMessage): void
     {
         $this->addResponse($status, ['Content-Type' => 'application/json'], json_encode([
-            'depositId' => 'f4401bd2-1568-4140-bf2d-eb77d2b2b639',
-            'status' => 'REJECTED',
             'failureReason' => [
                 'failureCode' => $failureCode,
                 'failureMessage' => $failureMessage,
@@ -74,6 +72,25 @@ final class MockPawapayClient extends PawapayClient
         ]);
     }
 
+    public function addPredictProviderFoundResponse(string $country, string $provider, string $phoneNumber): void
+    {
+        $this->addSuccessResponse([
+            'country' => $country,
+            'provider' => $provider,
+            'phoneNumber' => $phoneNumber,
+        ]);
+    }
+
+    public function addPredictProviderNotFoundResponse(): void
+    {
+        $this->addSuccessResponse([]);
+    }
+
+    public function addPredictProviderErrorResponse(int $status, string $failureCode, string $failureMessage): void
+    {
+        $this->addErrorResponse($status, $failureCode, $failureMessage);
+    }
+
     public function getMockHandler(): MockHandler
     {
         return $this->mockHandler;
@@ -81,12 +98,8 @@ final class MockPawapayClient extends PawapayClient
 
     public function assertRequestCount(int $expectedCount): void
     {
-        $requests = $this->mockHandler->getLastRequest();
-        if ($requests === null) {
-            $count = 0;
-        } else {
-            $count = 1;
-        }
+        $request = $this->mockHandler->getLastRequest();
+        $count = $request === null ? 0 : 1;
         Assert::assertEquals($expectedCount, $count);
     }
 

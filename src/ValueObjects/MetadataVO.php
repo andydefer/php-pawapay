@@ -13,20 +13,40 @@ final class MetadataVO extends AbstractValueObject
 {
     private const MAX_FIELDS = 10;
 
-    // ⚠️ Clés à exclure automatiquement des métadonnées Pawapay
+    private const MIN_FIELDS = 1;
+
+    /**
+     * Keys automatically stripped from the metadata before sending to PawaPay.
+     */
     private const EXCLUDED_KEYS = ['isPII'];
 
-    public function __construct(public readonly ?StrictDataObject $value = null)
+    public function __construct(public readonly StrictDataObject $value)
     {
-        if ($value === null) {
-            return;
-        }
-
         $data = $value->toArray();
 
-        if (count($data) > self::MAX_FIELDS) {
+        // Strip the excluded keys before validation so that a metadata
+        // containing only "isPII" is rejected as empty.
+        $data = array_diff_key($data, array_flip(self::EXCLUDED_KEYS));
+
+        $count = count($data);
+
+        if ($count < self::MIN_FIELDS) {
             throw new InvalidArgumentException(
-                sprintf('Metadata cannot exceed %d fields. Got %d fields.', self::MAX_FIELDS, count($data))
+                sprintf(
+                    'Metadata must contain at least %d field, %d given.',
+                    self::MIN_FIELDS,
+                    $count,
+                ),
+            );
+        }
+
+        if ($count > self::MAX_FIELDS) {
+            throw new InvalidArgumentException(
+                sprintf(
+                    'Metadata cannot exceed %d fields, %d given.',
+                    self::MAX_FIELDS,
+                    $count,
+                ),
             );
         }
 
@@ -44,89 +64,56 @@ final class MetadataVO extends AbstractValueObject
                     sprintf('Metadata key must be a string. Got %s.', gettype($key))
                 );
             }
-            if ($key === null || $key === '') {
-                throw new InvalidArgumentException('Metadata field name must not be null or empty');
+
+            if ($key === '') {
+                throw new InvalidArgumentException('Metadata field name must not be empty.');
             }
         }
     }
 
-    public function getValue(): ?Sequential
+    public function getValue(): Sequential
     {
-        if ($this->value === null) {
-            return null;
-        }
-
-        $data = $this->value->toArray();
-
-        // ✅ Supprimer automatiquement les clés exclues (isPII, etc.)
-        $filtered = array_diff_key($data, array_flip(self::EXCLUDED_KEYS));
-
-        // ✅ Supprimer les valeurs null
-        $filtered = array_filter($filtered, function ($value) {
-            return $value !== null;
-        });
-
-        if (empty($filtered)) {
-            return null;
-        }
+        $data = $this->toArray();
 
         $result = [];
-        foreach ($filtered as $key => $value) {
+        foreach ($data as $key => $value) {
             $result[] = new StrictDataObject([$key => $value]);
         }
 
         return new Sequential($result);
     }
 
-    public function toArray(): ?array
+    /**
+     * @return array<string, scalar>
+     */
+    public function toArray(): array
     {
-        if ($this->value === null) {
-            return null;
-        }
-
         $data = $this->value->toArray();
 
-        // ✅ Supprimer automatiquement les clés exclues
-        $filtered = array_diff_key($data, array_flip(self::EXCLUDED_KEYS));
-
-        return array_filter($filtered, function ($value) {
-            return $value !== null;
-        });
+        return array_diff_key($data, array_flip(self::EXCLUDED_KEYS));
     }
 
     public function count(): int
     {
-        if ($this->value === null) {
-            return 0;
-        }
-
-        return count($this->value->toArray());
+        return count($this->toArray());
     }
 
     public function get(string $key): mixed
     {
-        if ($this->value === null) {
-            return null;
-        }
-
-        $data = $this->value->toArray();
+        $data = $this->toArray();
 
         return $data[$key] ?? null;
     }
 
     public function has(string $key): bool
     {
-        if ($this->value === null) {
-            return false;
-        }
+        $data = $this->toArray();
 
-        $data = $this->value->toArray();
-
-        return isset($data[$key]);
+        return array_key_exists($key, $data);
     }
 
     public function isEmpty(): bool
     {
-        return $this->value === null || $this->count() === 0;
+        return $this->count() === 0;
     }
 }
