@@ -914,24 +914,23 @@ final class PawapayServiceTest extends TestCase
         $this->assertNull($data->phoneNumber);
     }
 
-    public function test_predict_provider_authentication_error_returns_data(): void
+    public function test_predict_provider_authentication_error_returns_error_response(): void
     {
         // Arrange: enqueue a canned 401 response
         $this->client->addAuthenticationErrorResponse();
 
-        // Act
-        $data = $this->service->predictProvider(
+        // Act: call the service with a valid record
+        $result = $this->service->predictProvider(
             PredictProviderRecord::from([
                 'phoneNumber' => PhoneNumberVO::from('260763456789'),
             ]),
         );
 
-        // Assert: the failure reason is mapped into typed data
-        $this->assertFalse($data->isFound);
-        $this->assertTrue($data->hasFailureReason);
-        $this->assertNotNull($data->failureReason);
-        $this->assertSame(FailureCode::AUTHENTICATION_ERROR, $data->failureReason->failureCode);
-        $this->assertSame('The API token in the request is invalid.', $data->failureReason->failureMessage);
+        // Assert: the service promotes the failure to an ErrorResponseData
+        $this->assertInstanceOf(ErrorResponseData::class, $result);
+        $this->assertSame('The API token in the request is invalid.', $result->message);
+        $this->assertSame(HttpStatusCode::UNAUTHORIZED, $result->status);
+        $this->assertSame('AUTHENTICATION_ERROR', $result->errorCode);
     }
 
     public function test_predict_provider_authorisation_error_returns_data(): void

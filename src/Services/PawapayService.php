@@ -183,6 +183,16 @@ class PawapayService implements PawapayInterface
 
         $response = $this->client->predictProvider($record->phoneNumber);
 
+        if ($response->hasFailureReason() && ! $response->isSuccess()) {
+            $reason = $response->getFailureReason();
+
+            return ErrorResponseData::from([
+                'message' => $reason->failureMessage,
+                'status' => $response->getStatusCode(),
+                'errorCode' => $reason->failureCode->value,
+            ]);
+        }
+
         $data = PredictProviderData::from([
             'country' => $response->getCountry(),
             'provider' => $response->getProvider(),
