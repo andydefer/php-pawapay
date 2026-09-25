@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace AndyDefer\PhpPawapay\Tests\Unit\Services;
 
-use AndyDefer\DomainStructures\Utils\StrictDataObject;
-use AndyDefer\PhpClient\ValueObjects\UrlVO;
 use AndyDefer\PhpPawapay\Contracts\Callbacks\HandlesCallbacksInterface;
 use AndyDefer\PhpPawapay\Datas\CheckDepositStatusData;
 use AndyDefer\PhpPawapay\Datas\CreatePaymentPageData;
@@ -23,7 +21,6 @@ use AndyDefer\PhpPawapay\Enums\Language;
 use AndyDefer\PhpPawapay\Enums\PayerType;
 use AndyDefer\PhpPawapay\Enums\Provider;
 use AndyDefer\PhpPawapay\Enums\ResendCallbackStatus;
-use AndyDefer\PhpPawapay\Graphs\AmountDetailsGraph;
 use AndyDefer\PhpPawapay\Records\CheckDepositStatusRecord;
 use AndyDefer\PhpPawapay\Records\CreatePaymentPageRecord;
 use AndyDefer\PhpPawapay\Records\InitiateDepositRecord;
@@ -39,8 +36,6 @@ use AndyDefer\PhpPawapay\Tests\Fixtures\Service\RecordingPawapayService;
 use AndyDefer\PhpPawapay\Tests\MockPawapayClient;
 use AndyDefer\PhpPawapay\ValueObjects\AccountDetailsVO;
 use AndyDefer\PhpPawapay\ValueObjects\AmountVO;
-use AndyDefer\PhpPawapay\ValueObjects\CustomerMessageVO;
-use AndyDefer\PhpPawapay\ValueObjects\MetadataVO;
 use AndyDefer\PhpPawapay\ValueObjects\PayerVO;
 use AndyDefer\PhpPawapay\ValueObjects\PhoneNumberVO;
 use AndyDefer\PhpPawapay\ValueObjects\UuidVO;
@@ -55,8 +50,10 @@ final class PawapayServiceTest extends TestCase
 
     protected function setUp(): void
     {
+
         $this->client = new MockPawapayClient;
         $this->service = new PawapayService($this->client);
+
     }
 
     private function createInitiateDepositRecord(): InitiateDepositRecord
@@ -78,8 +75,8 @@ final class PawapayServiceTest extends TestCase
             'currency' => Currency::ZMW,
             'preAuthorisationCode' => null,
             'clientReferenceId' => 'INV-123456',
-            'customerMessage' => CustomerMessageVO::from('Payment order 123'),
-            'metadata' => MetadataVO::from(new StrictDataObject([
+            'customerMessage' => ('Payment order 123'),
+            'metadata' => (([
                 'orderId' => 'ORD-123456789',
             ])),
         ]);
@@ -87,18 +84,22 @@ final class PawapayServiceTest extends TestCase
 
     private function createCreatePaymentPageRecord(): CreatePaymentPageRecord
     {
+
         return CreatePaymentPageRecord::from([
-            'depositId' => UuidVO::from('9b724dbf-32a7-4e63-96bb-59a4747e43ca'),
-            'returnUrl' => UrlVO::from('https://merchant.example.com/checkout-result'),
-            'amountDetails' => AmountDetailsGraph::from([
-                'amount' => AmountVO::from(25.50),
+            'depositId' => '9b724dbf-32a7-4e63-96bb-59a4747e43ca',
+            'returnUrl' => 'https://merchant.example.com/checkout-result',
+            'amountDetails' => [
+                'amount' => 25.50,
                 'currency' => Currency::USD,
-            ]),
-            'phoneNumber' => PhoneNumberVO::from('243812345678'),
+            ],
+            'phoneNumber' => '243812345678',
             'language' => Language::EN,
             'country' => Country::COD,
-            'customerMessage' => CustomerMessageVO::from('Payment order 123456'),
-            'metadata' => null,
+            'customerMessage' => 'Payment order 123',
+            'metadata' => [
+                'orderId' => 'ORD-123456789',
+            ],
+            'data' => null,
         ]);
     }
 

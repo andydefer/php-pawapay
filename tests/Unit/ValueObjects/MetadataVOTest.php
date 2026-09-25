@@ -24,13 +24,13 @@ final class MetadataVOTest extends TestCase
 {
     public function test_metadata_vo_accepts_valid_metadata(): void
     {
-        $data = new StrictDataObject([
+        $data = ([
             'orderId' => 'ORD-123456',
             'customerId' => 'CUST-789',
             'product' => 'Premium Plan',
         ]);
 
-        $metadata = new MetadataVO($data);
+        $metadata = MetadataVO::from($data);
 
         $this->assertSame(3, $metadata->count());
         $this->assertSame('ORD-123456', $metadata->get('orderId'));

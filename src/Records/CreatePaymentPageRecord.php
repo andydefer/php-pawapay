@@ -23,8 +23,8 @@ final class CreatePaymentPageRecord extends AbstractRecord
         public readonly PhoneNumberVO $phoneNumber,
         public readonly Language $language,
         public readonly Country $country,
-        public readonly ?CustomerMessageVO $customerMessage = null,
-        public readonly ?MetadataVO $metadata = null,
-        public readonly ?StrictAssociative $data = null,
+        public readonly CustomerMessageVO $customerMessage,
+        public readonly MetadataVO $metadata,
+        public readonly ?StrictAssociative $data,
     ) {}
 }
