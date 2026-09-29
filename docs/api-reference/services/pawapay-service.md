@@ -1,4 +1,4 @@
-# PawapayService - Référence Technique
+# PawapayService — Référence Technique (mise à jour)
 
 ## Description
 
@@ -22,14 +22,15 @@ Dépendances injectées :
 `PawapayService` est la couche d'orchestration entre votre code métier et le client HTTP PawaPay. Pour chaque opération métier, elle :
 
 1. reçoit un `Record` (entrée typée),
-2. applique le hook `before*`,
+2. applique le hook `before*` qui **retourne soit le `Record` (éventuellement muté), soit un `ErrorResponseData`**,
 3. si le hook retourne un `ErrorResponseData`, court-circuite le flux,
-4. convertit le `Record` en Value Object ou `Struct`,
-5. délègue l'appel HTTP au `PawapayClient`,
-6. convertit la `Response` en `Data` typée,
-7. applique le hook `after*`,
-8. si le hook retourne un `ErrorResponseData`, court-circuite le retour,
-9. retourne la `Data` ou l'erreur.
+4. **réassigne `$record` avec la valeur retournée** (le `Record` muté continue le flux),
+5. convertit le `Record` en Value Object ou `Struct`,
+6. délègue l'appel HTTP au `PawapayClient`,
+7. convertit la `Response` en `Data` typée,
+8. applique le hook `after*`,
+9. si le hook retourne un `ErrorResponseData`, court-circuite le retour,
+10. retourne la `Data` ou l'erreur.
 
 Elle expose également `handleCallback()` pour dispatcher un callback PawaPay vers la bonne méthode d'un handler.
 
@@ -278,7 +279,7 @@ if ($data->isAccepted) {
 }
 ```
 
-### Cas 2 : Service étendu avec hooks
+### Cas 2 : Service étendu — hook `before*` qui **mute le Record**
 
 ```php
 <?php
@@ -288,14 +289,14 @@ declare(strict_types=1);
 namespace App\Services;
 
 use AndyDefer\PhpPawapay\Datas\ErrorResponseData;
-use AndyDefer\PhpPawapay\Datas\InitiateDepositData;
 use AndyDefer\PhpPawapay\Records\InitiateDepositRecord;
 use AndyDefer\PhpPawapay\Services\PawapayService;
+use AndyDefer\PhpPawapay\ValueObjects\ReferenceVO;
 use AndyDefer\PhpVo\Enums\HttpStatusCode;
 
 final class AfyaPawapayService extends PawapayService
 {
-    protected function beforeInitiateDeposit(InitiateDepositRecord $record): ?ErrorResponseData
+    protected function beforeInitiateDeposit(InitiateDepositRecord $record): InitiateDepositRecord|ErrorResponseData
     {
         if ($record->amount->toFloat() > 10_000) {
             return ErrorResponseData::from([
@@ -305,15 +306,21 @@ final class AfyaPawapayService extends PawapayService
             ]);
         }
 
-        return null;
-    }
+        // Mutation : injecter une référence client si absente
+        if ($record->clientReferenceId === null) {
+            $record = InitiateDepositRecord::from([
+                'depositId' => $record->depositId,
+                'payer' => $record->payer,
+                'amount' => $record->amount,
+                'currency' => $record->currency,
+                'preAuthorisationCode' => $record->preAuthorisationCode,
+                'clientReferenceId' => ReferenceVO::from('AUTO-REF-' . time()),
+                'customerMessage' => $record->customerMessage,
+                'metadata' => $record->metadata,
+            ]);
+        }
 
-    protected function afterInitiateDeposit(
-        InitiateDepositRecord $record,
-        InitiateDepositData $data,
-    ): ?ErrorResponseData {
-        // Persister la tentative, notifier l'utilisateur, etc.
-        return null;
+        return $record;
     }
 }
 ```
@@ -347,9 +354,12 @@ $service->handleCallback($struct, new PawapayCallbackHandler());
 Record
     │
     ▼
-before<Operation>(Record)
+before<Operation>(Record): Record|ErrorResponseData
     │
     ├── ErrorResponseData → return (court-circuit)
+    │
+    ▼
+$record = <retour du hook>   ← réassignation (Record muté)
     │
     ▼
 Value Object / Struct
@@ -361,7 +371,7 @@ PawapayClient HTTP call
 Response → Data::from(...)
     │
     ▼
-after<Operation>(Record, Data)
+after<Operation>(Record, Data): ?ErrorResponseData
     │
     ├── ErrorResponseData → return (court-circuit)
     │
@@ -398,24 +408,37 @@ afterHandleCallback(Struct, Operation)
 | Value Object invalide | `InvalidArgumentException` | Message dépendant du VO |
 | Struct callback invalide | `InvalidArgumentException` | Message dépendant du Struct |
 | Erreur réseau | `GuzzleException` | Message dépendant de Guzzle |
-| Court-circuit hook | *(retour `ErrorResponseData`)* | N/A |
+| Court-circuit hook `before*` | *(retour `ErrorResponseData`)* | N/A |
+| Court-circuit hook `after*` | *(retour `ErrorResponseData`)* | N/A |
 
 ## Hooks disponibles
 
-| Hook | Signature | Court-circuit ? |
-|------|-----------|-----------------|
-| `beforeInitiateDeposit` | `(InitiateDepositRecord): ?ErrorResponseData` | ✅ |
-| `afterInitiateDeposit` | `(InitiateDepositRecord, InitiateDepositData): ?ErrorResponseData` | ✅ |
-| `beforeCheckDepositStatus` | `(CheckDepositStatusRecord): ?ErrorResponseData` | ✅ |
-| `afterCheckDepositStatus` | `(CheckDepositStatusRecord, CheckDepositStatusData): ?ErrorResponseData` | ✅ |
-| `beforeResendDepositCallback` | `(ResendDepositCallbackRecord): ?ErrorResponseData` | ✅ |
-| `afterResendDepositCallback` | `(ResendDepositCallbackRecord, ResendDepositCallbackData): ?ErrorResponseData` | ✅ |
-| `beforeCreatePaymentPage` | `(CreatePaymentPageRecord): ?ErrorResponseData` | ✅ |
-| `afterCreatePaymentPage` | `(CreatePaymentPageRecord, CreatePaymentPageData): ?ErrorResponseData` | ✅ |
-| `beforePredictProvider` | `(PredictProviderRecord): ?ErrorResponseData` | ✅ |
-| `afterPredictProvider` | `(PredictProviderRecord, PredictProviderData): ?ErrorResponseData` | ✅ |
-| `beforeHandleCallback` | `(Struct, CallbackOperationType): void` | ❌ |
-| `afterHandleCallback` | `(Struct, CallbackOperationType): void` | ❌ |
+### Hooks `before*` — **retournent le Record (muté ou non) ou une erreur**
+
+| Hook | Signature | Retour |
+|------|-----------|--------|
+| `beforeInitiateDeposit` | `(InitiateDepositRecord): InitiateDepositRecord\|ErrorResponseData` | Record muté ou erreur |
+| `beforeCheckDepositStatus` | `(CheckDepositStatusRecord): CheckDepositStatusRecord\|ErrorResponseData` | Record muté ou erreur |
+| `beforeResendDepositCallback` | `(ResendDepositCallbackRecord): ResendDepositCallbackRecord\|ErrorResponseData` | Record muté ou erreur |
+| `beforeCreatePaymentPage` | `(CreatePaymentPageRecord): CreatePaymentPageRecord\|ErrorResponseData` | Record muté ou erreur |
+| `beforePredictProvider` | `(PredictProviderRecord): PredictProviderRecord\|ErrorResponseData` | Record muté ou erreur |
+
+### Hooks `after*` — **retournent une erreur ou `null`**
+
+| Hook | Signature | Retour |
+|------|-----------|--------|
+| `afterInitiateDeposit` | `(InitiateDepositRecord, InitiateDepositData): ?ErrorResponseData` | Erreur ou `null` |
+| `afterCheckDepositStatus` | `(CheckDepositStatusRecord, CheckDepositStatusData): ?ErrorResponseData` | Erreur ou `null` |
+| `afterResendDepositCallback` | `(ResendDepositCallbackRecord, ResendDepositCallbackData): ?ErrorResponseData` | Erreur ou `null` |
+| `afterCreatePaymentPage` | `(CreatePaymentPageRecord, CreatePaymentPageData): ?ErrorResponseData` | Erreur ou `null` |
+| `afterPredictProvider` | `(PredictProviderRecord, PredictProviderData): ?ErrorResponseData` | Erreur ou `null` |
+
+### Hooks de callback — **retournent `void`**
+
+| Hook | Signature |
+|------|-----------|
+| `beforeHandleCallback` | `(Struct, CallbackOperationType): void` |
+| `afterHandleCallback` | `(Struct, CallbackOperationType): void` |
 
 ## Intégration
 
@@ -437,13 +460,13 @@ Le service est **sans état** (hors dépendance injectée). Il peut être enregi
 - Aucune I/O hors appels HTTP délégués au client.
 - Conversion `Response` → `Data` en O(1).
 - `operationOf()` fait un `match` sur 4 cas — O(1).
-- Les hooks vides ne coûtent qu'un appel de méthode.
+- Les hooks vides ne coûtent qu'un appel de méthode + une réassignation de `$record` (coût négligeable, référence d'objet).
 
 ## Compatibilité
 
 | Version PHP | Support |
 |-------------|---------|
-| PHP 8.1+ | ✅ Complet (enums, `match`, `readonly`) |
+| PHP 8.1+ | ✅ Complet (enums, `match`, `readonly`, union types) |
 | PHP 8.0 | ❌ Non supporté |
 
 ## Exemple complet
@@ -512,10 +535,10 @@ if ($status->isFound && $status->depositData?->status->isCompleted()) {
 
 ## Voir aussi
 
-- `PawapayInterface` - Contrat implémenté
-- `PawapayClient` - Client HTTP sous-jacent
-- `InitiateDepositRecord`, `CheckDepositStatusRecord`, `ResendDepositCallbackRecord`, `CreatePaymentPageRecord`, `PredictProviderRecord` - Entrées
-- `InitiateDepositData`, `CheckDepositStatusData`, `ResendDepositCallbackData`, `CreatePaymentPageData`, `PredictProviderData` - Sorties
-- `ErrorResponseData` - Court-circuit de hook
-- `HandlesCallbacksInterface` - Handler de callbacks
-- `CallbackOperationType` - Détection du type d'opération
+- `PawapayInterface` — Contrat implémenté
+- `PawapayClient` — Client HTTP sous-jacent
+- `InitiateDepositRecord`, `CheckDepositStatusRecord`, `ResendDepositCallbackRecord`, `CreatePaymentPageRecord`, `PredictProviderRecord` — Entrées
+- `InitiateDepositData`, `CheckDepositStatusData`, `ResendDepositCallbackData`, `CreatePaymentPageData`, `PredictProviderData` — Sorties
+- `ErrorResponseData` — Court-circuit de hook
+- `HandlesCallbacksInterface` — Handler de callbacks
+- `CallbackOperationType` — Détection du type d'opération

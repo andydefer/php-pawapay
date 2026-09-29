@@ -45,6 +45,8 @@ class PawapayService implements PawapayInterface
             return $before;
         }
 
+        $record = $before;
+
         $deposit = InitiateDepositVO::from([
             'depositId' => $record->depositId,
             'payer' => $record->payer,
@@ -88,6 +90,8 @@ class PawapayService implements PawapayInterface
             return $before;
         }
 
+        $record = $before;
+
         $response = $this->client->checkDepositStatus($record->depositId->getValue());
 
         $data = CheckDepositStatusData::from([
@@ -116,6 +120,8 @@ class PawapayService implements PawapayInterface
             return $before;
         }
 
+        $record = $before;
+
         $response = $this->client->resendDepositCallback($record->depositId->getValue());
 
         $data = ResendDepositCallbackData::from([
@@ -143,6 +149,8 @@ class PawapayService implements PawapayInterface
         if ($before instanceof ErrorResponseData) {
             return $before;
         }
+
+        $record = $before;
 
         $struct = PaymentPageStruct::from([
             'depositId' => $record->depositId,
@@ -180,6 +188,8 @@ class PawapayService implements PawapayInterface
         if ($before instanceof ErrorResponseData) {
             return $before;
         }
+
+        $record = $before;
 
         $response = $this->client->predictProvider($record->phoneNumber);
 
@@ -237,12 +247,12 @@ class PawapayService implements PawapayInterface
     }
 
     // ============================================================
-    // HOOKS
+    // HOOKS — before* retourne soit le Record muté, soit l'erreur
     // ============================================================
 
-    protected function beforeInitiateDeposit(InitiateDepositRecord $record): ?ErrorResponseData
+    protected function beforeInitiateDeposit(InitiateDepositRecord $record): InitiateDepositRecord|ErrorResponseData
     {
-        return null;
+        return $record;
     }
 
     protected function afterInitiateDeposit(InitiateDepositRecord $record, InitiateDepositData $data): ?ErrorResponseData
@@ -250,9 +260,9 @@ class PawapayService implements PawapayInterface
         return null;
     }
 
-    protected function beforeCheckDepositStatus(CheckDepositStatusRecord $record): ?ErrorResponseData
+    protected function beforeCheckDepositStatus(CheckDepositStatusRecord $record): CheckDepositStatusRecord|ErrorResponseData
     {
-        return null;
+        return $record;
     }
 
     protected function afterCheckDepositStatus(CheckDepositStatusRecord $record, CheckDepositStatusData $data): ?ErrorResponseData
@@ -260,9 +270,9 @@ class PawapayService implements PawapayInterface
         return null;
     }
 
-    protected function beforeResendDepositCallback(ResendDepositCallbackRecord $record): ?ErrorResponseData
+    protected function beforeResendDepositCallback(ResendDepositCallbackRecord $record): ResendDepositCallbackRecord|ErrorResponseData
     {
-        return null;
+        return $record;
     }
 
     protected function afterResendDepositCallback(ResendDepositCallbackRecord $record, ResendDepositCallbackData $data): ?ErrorResponseData
@@ -270,9 +280,9 @@ class PawapayService implements PawapayInterface
         return null;
     }
 
-    protected function beforeCreatePaymentPage(CreatePaymentPageRecord $record): ?ErrorResponseData
+    protected function beforeCreatePaymentPage(CreatePaymentPageRecord $record): CreatePaymentPageRecord|ErrorResponseData
     {
-        return null;
+        return $record;
     }
 
     protected function afterCreatePaymentPage(CreatePaymentPageRecord $record, CreatePaymentPageData $data): ?ErrorResponseData
@@ -280,9 +290,9 @@ class PawapayService implements PawapayInterface
         return null;
     }
 
-    protected function beforePredictProvider(PredictProviderRecord $record): ?ErrorResponseData
+    protected function beforePredictProvider(PredictProviderRecord $record): PredictProviderRecord|ErrorResponseData
     {
-        return null;
+        return $record;
     }
 
     protected function afterPredictProvider(PredictProviderRecord $record, PredictProviderData $data): ?ErrorResponseData
@@ -290,21 +300,11 @@ class PawapayService implements PawapayInterface
         return null;
     }
 
-    /**
-     * Hook executed before dispatching a callback to the handler.
-     *
-     * @param  CallbackOperationType  $operation  The detected operation type.
-     */
     protected function beforeHandleCallback(
         DepositCallbackStruct|PayoutCallbackStruct|RefundCallbackStruct|CheckoutCallbackStruct $struct,
         CallbackOperationType $operation,
     ): void {}
 
-    /**
-     * Hook executed after dispatching a callback to the handler.
-     *
-     * @param  CallbackOperationType  $operation  The detected operation type.
-     */
     protected function afterHandleCallback(
         DepositCallbackStruct|PayoutCallbackStruct|RefundCallbackStruct|CheckoutCallbackStruct $struct,
         CallbackOperationType $operation,
