@@ -112,13 +112,8 @@ enum Currency: string
     public function getDecimals(): int
     {
         return match ($this) {
-            self::USD, self::NGN, self::KES, self::TZS, self::UGX, self::GHS => 2,
-            self::XOF, self::XAF, self::CDF, self::RWF, self::MWK, self::ZMW => 2,
-            self::ETB => 2,
-            self::LSL => 2,
-            self::MZN => 2,
-            self::SLE => 2,
-            default => 2,
+            self::USD => 2,
+            default => 0,
         };
     }
 }

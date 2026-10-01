@@ -15,8 +15,10 @@ use AndyDefer\PhpPawapay\Datas\InitiateDepositData;
 use AndyDefer\PhpPawapay\Datas\PredictProviderData;
 use AndyDefer\PhpPawapay\Datas\ResendDepositCallbackData;
 use AndyDefer\PhpPawapay\Enums\CallbackOperationType;
+use AndyDefer\PhpPawapay\Enums\Currency;
 use AndyDefer\PhpPawapay\Enums\PawaPayBaseUrl;
 use AndyDefer\PhpPawapay\PawapayClient;
+use AndyDefer\PhpPawapay\Records\AmountDetailsRecord;
 use AndyDefer\PhpPawapay\Records\CheckDepositStatusRecord;
 use AndyDefer\PhpPawapay\Records\CreatePaymentPageRecord;
 use AndyDefer\PhpPawapay\Records\InitiateDepositRecord;
@@ -28,6 +30,7 @@ use AndyDefer\PhpPawapay\Structures\Callbacks\PayoutCallbackStruct;
 use AndyDefer\PhpPawapay\Structures\Callbacks\RefundCallbackStruct;
 use AndyDefer\PhpPawapay\Structures\FailureReasonStruct;
 use AndyDefer\PhpPawapay\Structures\PaymentPageStruct;
+use AndyDefer\PhpPawapay\ValueObjects\AmountVO;
 use AndyDefer\PhpPawapay\ValueObjects\InitiateDepositVO;
 use AndyDefer\PhpPawapay\ValueObjects\ReferenceVO;
 
@@ -50,7 +53,9 @@ class PawapayService implements PawapayInterface
         $deposit = InitiateDepositVO::from([
             'depositId' => $record->depositId,
             'payer' => $record->payer,
-            'amount' => $record->amount,
+            'amount' => AmountVO::from(
+                $this->normalizeAmount($record->amount, $record->currency),
+            ),
             'currency' => $record->currency,
             'preAuthorisationCode' => $record->preAuthorisationCode,
             'clientReferenceId' => $record->clientReferenceId !== null
@@ -152,10 +157,19 @@ class PawapayService implements PawapayInterface
 
         $record = $before;
 
+        $amountDetails = $record->amountDetails;
+
+        $normalizedAmountDetails = new AmountDetailsRecord(
+            amount: AmountVO::from(
+                $this->normalizeAmount($amountDetails->amount, $amountDetails->currency),
+            ),
+            currency: $amountDetails->currency,
+        );
+
         $struct = PaymentPageStruct::from([
             'depositId' => $record->depositId,
             'returnUrl' => $record->returnUrl,
-            'amountDetails' => $record->amountDetails,
+            'amountDetails' => $normalizedAmountDetails,
             'phoneNumber' => $record->phoneNumber,
             'language' => $record->language,
             'country' => $record->country,
@@ -335,5 +349,21 @@ class PawapayService implements PawapayInterface
             'failureCode' => $reason->failureCode,
             'failureMessage' => $reason->failureMessage,
         ]);
+    }
+
+    /**
+     * Normalize the amount according to the currency decimals.
+     *
+     * USD keeps 2 decimals (unchanged). Every other supported currency
+     * is rounded UP to the next integer (ceil), so the user is never
+     * charged less than what PawaPay expects.
+     */
+    private function normalizeAmount(AmountVO $amount, Currency $currency): float
+    {
+        if ($currency === Currency::USD) {
+            return $amount->toFloat();
+        }
+
+        return ceil($amount->toFloat());
     }
 }

@@ -175,6 +175,132 @@ final class PawapayServiceTest extends TestCase
         );
     }
 
+    public function test_initiate_deposit_keeps_two_decimals_for_usd(): void
+    {
+        // Arrange
+        $this->client->addSuccessResponse([
+            'depositId' => 'f4401bd2-1568-4140-bf2d-eb77d2b2b639',
+            'status' => 'ACCEPTED',
+            'created' => '2020-10-19T11:17:01Z',
+        ]);
+
+        $accountDetails = AccountDetailsVO::from([
+            'phoneNumber' => PhoneNumberVO::from('260763456789'),
+            'provider' => Provider::MTN_MOMO_ZMB,
+        ]);
+
+        $payer = PayerVO::from([
+            'type' => PayerType::MMO,
+            'accountDetails' => $accountDetails,
+        ]);
+
+        $record = InitiateDepositRecord::from([
+            'depositId' => UuidVO::from('f4401bd2-1568-4140-bf2d-eb77d2b2b639'),
+            'payer' => $payer,
+            'amount' => AmountVO::from(15.90),
+            'currency' => Currency::USD,
+            'preAuthorisationCode' => null,
+            'clientReferenceId' => 'INV-123456',
+            'customerMessage' => 'Payment order 123',
+            'metadata' => ['orderId' => 'ORD-123456789'],
+        ]);
+
+        // Act
+        $this->service->initiateDeposit($record);
+
+        // Assert: the outgoing request kept the 2 decimals for USD
+        $body = json_decode(
+            (string) $this->client->getMockHandler()->getLastRequest()?->getBody(),
+            true,
+        );
+
+        $this->assertSame('15.90', (string) $body['amount']);
+    }
+
+    public function test_initiate_deposit_rounds_up_non_usd_amounts_to_nearest_integer(): void
+    {
+        // Arrange
+        $this->client->addSuccessResponse([
+            'depositId' => 'f4401bd2-1568-4140-bf2d-eb77d2b2b639',
+            'status' => 'ACCEPTED',
+            'created' => '2020-10-19T11:17:01Z',
+        ]);
+
+        $accountDetails = AccountDetailsVO::from([
+            'phoneNumber' => PhoneNumberVO::from('260763456789'),
+            'provider' => Provider::MTN_MOMO_ZMB,
+        ]);
+
+        $payer = PayerVO::from([
+            'type' => PayerType::MMO,
+            'accountDetails' => $accountDetails,
+        ]);
+
+        $record = InitiateDepositRecord::from([
+            'depositId' => UuidVO::from('f4401bd2-1568-4140-bf2d-eb77d2b2b639'),
+            'payer' => $payer,
+            'amount' => AmountVO::from(15.10),
+            'currency' => Currency::ZMW,
+            'preAuthorisationCode' => null,
+            'clientReferenceId' => 'INV-123456',
+            'customerMessage' => 'Payment order 123',
+            'metadata' => ['orderId' => 'ORD-123456789'],
+        ]);
+
+        // Act
+        $this->service->initiateDeposit($record);
+
+        // Assert: 15.10 was rounded up to 16.00
+        $body = json_decode(
+            (string) $this->client->getMockHandler()->getLastRequest()?->getBody(),
+            true,
+        );
+
+        $this->assertSame('16.00', (string) $body['amount']);
+    }
+
+    public function test_initiate_deposit_keeps_non_usd_integer_amount_unchanged(): void
+    {
+        // Arrange
+        $this->client->addSuccessResponse([
+            'depositId' => 'f4401bd2-1568-4140-bf2d-eb77d2b2b639',
+            'status' => 'ACCEPTED',
+            'created' => '2020-10-19T11:17:01Z',
+        ]);
+
+        $accountDetails = AccountDetailsVO::from([
+            'phoneNumber' => PhoneNumberVO::from('260763456789'),
+            'provider' => Provider::MTN_MOMO_ZMB,
+        ]);
+
+        $payer = PayerVO::from([
+            'type' => PayerType::MMO,
+            'accountDetails' => $accountDetails,
+        ]);
+
+        $record = InitiateDepositRecord::from([
+            'depositId' => UuidVO::from('f4401bd2-1568-4140-bf2d-eb77d2b2b639'),
+            'payer' => $payer,
+            'amount' => AmountVO::from(15.00),
+            'currency' => Currency::ZMW,
+            'preAuthorisationCode' => null,
+            'clientReferenceId' => 'INV-123456',
+            'customerMessage' => 'Payment order 123',
+            'metadata' => ['orderId' => 'ORD-123456789'],
+        ]);
+
+        // Act
+        $this->service->initiateDeposit($record);
+
+        // Assert: 15.00 stays 15.00
+        $body = json_decode(
+            (string) $this->client->getMockHandler()->getLastRequest()?->getBody(),
+            true,
+        );
+
+        $this->assertSame('15.00', (string) $body['amount']);
+    }
+
     // ==================== CHECK DEPOSIT STATUS ====================
 
     public function test_check_deposit_status_found_returns_data(): void
@@ -368,6 +494,108 @@ final class PawapayServiceTest extends TestCase
         $this->assertTrue($data->hasFailureReason);
         $this->assertNotNull($data->failureReason);
         $this->assertSame(FailureCode::AUTHENTICATION_ERROR, $data->failureReason->failureCode);
+    }
+
+    public function test_create_payment_page_keeps_two_decimals_for_usd(): void
+    {
+        // Arrange
+        $this->client->addSuccessResponse([
+            'redirectUrl' => 'https://sandbox.paywith.pawapay.io/v2?token=xxx',
+        ]);
+
+        $record = CreatePaymentPageRecord::from([
+            'depositId' => '9b724dbf-32a7-4e63-96bb-59a4747e43ca',
+            'returnUrl' => 'https://merchant.example.com/checkout-result',
+            'amountDetails' => [
+                'amount' => 25.90,
+                'currency' => Currency::USD,
+            ],
+            'phoneNumber' => '243812345678',
+            'language' => Language::EN,
+            'country' => Country::COD,
+            'customerMessage' => 'Payment order 123',
+            'metadata' => ['orderId' => 'ORD-123456789'],
+            'data' => null,
+        ]);
+
+        // Act
+        $this->service->createPaymentPage($record);
+
+        // Assert: the amount kept its 2 decimals in the outgoing request
+        $body = json_decode(
+            (string) $this->client->getMockHandler()->getLastRequest()?->getBody(),
+            true,
+        );
+
+        $this->assertSame('25.90', (string) $body['amountDetails']['amount']);
+    }
+
+    public function test_create_payment_page_rounds_up_non_usd_amounts_to_nearest_integer(): void
+    {
+        // Arrange
+        $this->client->addSuccessResponse([
+            'redirectUrl' => 'https://sandbox.paywith.pawapay.io/v2?token=xxx',
+        ]);
+
+        $record = CreatePaymentPageRecord::from([
+            'depositId' => '9b724dbf-32a7-4e63-96bb-59a4747e43ca',
+            'returnUrl' => 'https://merchant.example.com/checkout-result',
+            'amountDetails' => [
+                'amount' => 25.10,
+                'currency' => Currency::ZMW,
+            ],
+            'phoneNumber' => '243812345678',
+            'language' => Language::EN,
+            'country' => Country::COD,
+            'customerMessage' => 'Payment order 123',
+            'metadata' => ['orderId' => 'ORD-123456789'],
+            'data' => null,
+        ]);
+
+        // Act
+        $this->service->createPaymentPage($record);
+
+        // Assert: 25.10 was rounded up to 26.00
+        $body = json_decode(
+            (string) $this->client->getMockHandler()->getLastRequest()?->getBody(),
+            true,
+        );
+
+        $this->assertSame('26.00', (string) $body['amountDetails']['amount']);
+    }
+
+    public function test_create_payment_page_keeps_non_usd_integer_amount_unchanged(): void
+    {
+        // Arrange
+        $this->client->addSuccessResponse([
+            'redirectUrl' => 'https://sandbox.paywith.pawapay.io/v2?token=xxx',
+        ]);
+
+        $record = CreatePaymentPageRecord::from([
+            'depositId' => '9b724dbf-32a7-4e63-96bb-59a4747e43ca',
+            'returnUrl' => 'https://merchant.example.com/checkout-result',
+            'amountDetails' => [
+                'amount' => 25.00,
+                'currency' => Currency::ZMW,
+            ],
+            'phoneNumber' => '243812345678',
+            'language' => Language::EN,
+            'country' => Country::COD,
+            'customerMessage' => 'Payment order 123',
+            'metadata' => ['orderId' => 'ORD-123456789'],
+            'data' => null,
+        ]);
+
+        // Act
+        $this->service->createPaymentPage($record);
+
+        // Assert: 25.00 stays 25.00
+        $body = json_decode(
+            (string) $this->client->getMockHandler()->getLastRequest()?->getBody(),
+            true,
+        );
+
+        $this->assertSame('25.00', (string) $body['amountDetails']['amount']);
     }
 
     // ==================== HOOKS ====================
