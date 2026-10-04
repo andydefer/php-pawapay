@@ -391,4 +391,150 @@ final class AmountVOTest extends TestCase
         $this->assertSame('1.00', $result->toString());
         $this->assertSame('1.00', $result->getValue());
     }
+
+    public function test_to_normal_rounds_down_when_last_digit_below_five(): void
+    {
+        // Arrange : an amount whose unit digit is below five
+        $amount = new AmountVO(17444.00);
+
+        // Act : normalize the amount to the nearest ten
+        $normalized = $amount->toNormal();
+
+        // Assert : the unit digit is rounded down to zero
+        $this->assertSame('17440.00', $normalized->toString());
+    }
+
+    public function test_to_normal_rounds_up_when_last_digit_above_five(): void
+    {
+        // Arrange : an amount whose unit digit is above five
+        $amount = new AmountVO(17447.00);
+
+        // Act : normalize the amount to the nearest ten
+        $normalized = $amount->toNormal();
+
+        // Assert : the unit digit is rounded up to zero
+        $this->assertSame('17450.00', $normalized->toString());
+    }
+
+    public function test_to_normal_rounds_up_with_decimal_part(): void
+    {
+        // Arrange : an amount with a decimal part and a unit digit above five
+        $amount = new AmountVO(17447.56);
+
+        // Act : normalize the amount to the nearest ten
+        $normalized = $amount->toNormal();
+
+        // Assert : the amount is rounded up to the nearest ten, decimals cleared
+        $this->assertSame('17450.00', $normalized->toString());
+    }
+
+    public function test_to_normal_rounds_up_when_last_digit_is_exactly_five(): void
+    {
+        // Arrange : an amount whose unit digit is exactly five
+        $amount = new AmountVO(17445.00);
+
+        // Act : normalize the amount to the nearest ten
+        $normalized = $amount->toNormal();
+
+        // Assert : half-up rounding pushes the value to the next ten
+        $this->assertSame('17450.00', $normalized->toString());
+    }
+
+    public function test_to_normal_keeps_already_aligned_amount_unchanged(): void
+    {
+        // Arrange : an amount already aligned on a multiple of ten
+        $amount = new AmountVO(17450.00);
+
+        // Act : normalize the amount to the nearest ten
+        $normalized = $amount->toNormal();
+
+        // Assert : the amount is preserved
+        $this->assertSame('17450.00', $normalized->toString());
+    }
+
+    public function test_to_normal_returns_a_new_instance(): void
+    {
+        // Arrange : an amount to normalize
+        $original = new AmountVO(17447.00);
+
+        // Act : normalize the amount
+        $normalized = $original->toNormal();
+
+        // Assert : immutability is preserved, the original value is untouched
+        $this->assertNotSame($original, $normalized);
+        $this->assertSame('17447.00', $original->toString());
+        $this->assertSame('17450.00', $normalized->toString());
+    }
+
+    public function test_to_normal_with_small_amount_below_five(): void
+    {
+        // Arrange : an amount whose normalization would fall below the positive constraint
+        $amount = new AmountVO(4.00);
+
+        // Act & Assert : the constructor rejects a zero result
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Amount must be positive');
+
+        $amount->toNormal();
+    }
+
+    public function test_to_normal_with_two_zeros_rounds_down_when_third_digit_below_five(): void
+    {
+        // Arrange : an amount whose hundreds digit is below five
+        $amount = new AmountVO(17445.00);
+
+        // Act : normalize with two trailing zeros
+        $normalized = $amount->toNormal(2);
+
+        // Assert : the amount is rounded down to the nearest hundred
+        $this->assertSame('17400.00', $normalized->toString());
+    }
+
+    public function test_to_normal_with_two_zeros_rounds_up_when_third_digit_above_five(): void
+    {
+        // Arrange : an amount whose hundreds digit is above five
+        $amount = new AmountVO(17455.00);
+
+        // Act : normalize with two trailing zeros
+        $normalized = $amount->toNormal(2);
+
+        // Assert : the amount is rounded up to the nearest hundred
+        $this->assertSame('17500.00', $normalized->toString());
+    }
+
+    public function test_to_normal_with_three_zeros_rounds_to_nearest_thousand(): void
+    {
+        // Arrange : an amount to round to the nearest thousand
+        $amount = new AmountVO(17447.00);
+
+        // Act : normalize with three trailing zeros
+        $normalized = $amount->toNormal(3);
+
+        // Assert : the amount is rounded down to the nearest thousand
+        $this->assertSame('17000.00', $normalized->toString());
+    }
+
+    public function test_to_normal_with_zero_zeros_rounds_to_nearest_unit(): void
+    {
+        // Arrange : an amount with decimals to round to the nearest unit
+        $amount = new AmountVO(17447.56);
+
+        // Act : normalize with no trailing zeros
+        $normalized = $amount->toNormal(0);
+
+        // Assert : the amount is rounded to the nearest integer
+        $this->assertSame('17448.00', $normalized->toString());
+    }
+
+    public function test_to_normal_with_negative_zeros_throws_exception(): void
+    {
+        // Arrange : an amount to normalize with an invalid precision
+        $amount = new AmountVO(17447.00);
+
+        // Act & Assert : a negative precision is rejected
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Number of trailing zeros must be greater than or equal to 0');
+
+        $amount->toNormal(-1);
+    }
 }

@@ -354,9 +354,14 @@ class PawapayService implements PawapayInterface
     /**
      * Normalize the amount according to the currency decimals.
      *
-     * USD keeps 2 decimals (unchanged). Every other supported currency
-     * is rounded UP to the next integer (ceil), so the user is never
-     * charged less than what PawaPay expects.
+     * USD keeps 2 decimals (unchanged). Every other supported currency is
+     * rounded to the nearest hundred via {@see AmountVO::toNormal()} before
+     * being converted to a float, so the amount stays aligned with the
+     * currency's expected granularity.
+     *
+     * @param  AmountVO  $amount  Amount to normalize
+     * @param  Currency  $currency  Target currency
+     * @return float Normalized amount as a float
      */
     private function normalizeAmount(AmountVO $amount, Currency $currency): float
     {
@@ -364,6 +369,6 @@ class PawapayService implements PawapayInterface
             return $amount->toFloat();
         }
 
-        return ceil($amount->toFloat());
+        return $amount->toNormal(1)->toFloat();
     }
 }

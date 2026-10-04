@@ -50,10 +50,8 @@ final class PawapayServiceTest extends TestCase
 
     protected function setUp(): void
     {
-
         $this->client = new MockPawapayClient;
         $this->service = new PawapayService($this->client);
-
     }
 
     private function createInitiateDepositRecord(): InitiateDepositRecord
@@ -84,7 +82,6 @@ final class PawapayServiceTest extends TestCase
 
     private function createCreatePaymentPageRecord(): CreatePaymentPageRecord
     {
-
         return CreatePaymentPageRecord::from([
             'depositId' => '9b724dbf-32a7-4e63-96bb-59a4747e43ca',
             'returnUrl' => 'https://merchant.example.com/checkout-result',
@@ -217,7 +214,7 @@ final class PawapayServiceTest extends TestCase
         $this->assertSame('15.90', (string) $body['amount']);
     }
 
-    public function test_initiate_deposit_rounds_up_non_usd_amounts_to_nearest_integer(): void
+    public function test_initiate_deposit_rounds_non_usd_amounts_to_nearest_ten(): void
     {
         // Arrange
         $this->client->addSuccessResponse([
@@ -250,16 +247,16 @@ final class PawapayServiceTest extends TestCase
         // Act
         $this->service->initiateDeposit($record);
 
-        // Assert: 15.10 was rounded up to 16.00
+        // Assert: 15.10 was rounded to the nearest ten (20.00)
         $body = json_decode(
             (string) $this->client->getMockHandler()->getLastRequest()?->getBody(),
             true,
         );
 
-        $this->assertSame('16.00', (string) $body['amount']);
+        $this->assertSame('20.00', (string) $body['amount']);
     }
 
-    public function test_initiate_deposit_keeps_non_usd_integer_amount_unchanged(): void
+    public function test_initiate_deposit_rounds_non_usd_integer_amount_to_nearest_ten(): void
     {
         // Arrange
         $this->client->addSuccessResponse([
@@ -292,13 +289,13 @@ final class PawapayServiceTest extends TestCase
         // Act
         $this->service->initiateDeposit($record);
 
-        // Assert: 15.00 stays 15.00
+        // Assert: 15.00 was rounded to the nearest ten (20.00)
         $body = json_decode(
             (string) $this->client->getMockHandler()->getLastRequest()?->getBody(),
             true,
         );
 
-        $this->assertSame('15.00', (string) $body['amount']);
+        $this->assertSame('20.00', (string) $body['amount']);
     }
 
     // ==================== CHECK DEPOSIT STATUS ====================
@@ -530,7 +527,7 @@ final class PawapayServiceTest extends TestCase
         $this->assertSame('25.90', (string) $body['amountDetails']['amount']);
     }
 
-    public function test_create_payment_page_rounds_up_non_usd_amounts_to_nearest_integer(): void
+    public function test_create_payment_page_rounds_non_usd_amounts_to_nearest_ten(): void
     {
         // Arrange
         $this->client->addSuccessResponse([
@@ -555,16 +552,16 @@ final class PawapayServiceTest extends TestCase
         // Act
         $this->service->createPaymentPage($record);
 
-        // Assert: 25.10 was rounded up to 26.00
+        // Assert: 25.10 was rounded to the nearest ten (30.00)
         $body = json_decode(
             (string) $this->client->getMockHandler()->getLastRequest()?->getBody(),
             true,
         );
 
-        $this->assertSame('26.00', (string) $body['amountDetails']['amount']);
+        $this->assertSame('30.00', (string) $body['amountDetails']['amount']);
     }
 
-    public function test_create_payment_page_keeps_non_usd_integer_amount_unchanged(): void
+    public function test_create_payment_page_rounds_non_usd_integer_amount_to_nearest_ten(): void
     {
         // Arrange
         $this->client->addSuccessResponse([
@@ -589,13 +586,13 @@ final class PawapayServiceTest extends TestCase
         // Act
         $this->service->createPaymentPage($record);
 
-        // Assert: 25.00 stays 25.00
+        // Assert: 25.00 was rounded to the nearest ten (30.00)
         $body = json_decode(
             (string) $this->client->getMockHandler()->getLastRequest()?->getBody(),
             true,
         );
 
-        $this->assertSame('25.00', (string) $body['amountDetails']['amount']);
+        $this->assertSame('30.00', (string) $body['amountDetails']['amount']);
     }
 
     // ==================== HOOKS ====================
