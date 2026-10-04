@@ -99,6 +99,28 @@ final class AmountVO extends AbstractValueObject
         return bccomp($this->value, '0', self::DECIMALS) < 0;
     }
 
+    public function toNormal(int $zeros = 1): self
+    {
+        if ($zeros < 0) {
+            throw new InvalidArgumentException('Number of trailing zeros must be greater than or equal to 0');
+        }
+
+        $divisor = bcpow('10', (string) $zeros, 0);
+        $floor = bcmul(
+            bcdiv($this->value, $divisor, 0),
+            $divisor,
+            self::DECIMALS,
+        );
+
+        if (bccomp($floor, $this->value, self::DECIMALS) === 0) {
+            return new self((float) $this->value);
+        }
+
+        $ceiled = bcadd($floor, $divisor, self::DECIMALS);
+
+        return new self((float) $ceiled);
+    }
+
     private function formatNumber(string $value): string
     {
         $sign = '';
@@ -118,46 +140,6 @@ final class AmountVO extends AbstractValueObject
         }
 
         return $sign.$integer.'.'.$decimal;
-    }
-
-    /**
-     * Round the amount to the nearest multiple of ten raised to the given
-     * number of trailing zeros.
-     *
-     * Examples:
-     *  - (17445.00, 1) → 17450.00
-     *  - (17445.00, 2) → 17400.00
-     *  - (17455.00, 2) → 17500.00
-     *  - (17447.56, 2) → 17400.00
-     *
-     * @param  int  $zeros  Number of trailing zeros to align on (must be >= 0)
-     * @return self A new instance rounded to the requested precision
-     *
-     * @throws InvalidArgumentException When $zeros is negative
-     */
-    public function toNormal(int $zeros = 1): self
-    {
-        if ($zeros < 0) {
-            throw new InvalidArgumentException('Number of trailing zeros must be greater than or equal to 0');
-        }
-
-        if ($zeros === 0) {
-            $rounded = bcadd($this->value, $this->value >= '0' ? '0.5' : '-0.5', 0);
-
-            return new self((float) $rounded);
-        }
-
-        $divisor = bcpow('10', (string) $zeros, 0);
-        $scaled = bcdiv($this->value, $divisor, self::DECIMALS + 1);
-
-        $rounded = match (true) {
-            bccomp($scaled, '0', self::DECIMALS + 1) >= 0 => bcadd($scaled, '0.5', 0),
-            default => bcsub($scaled, '0.5', 0),
-        };
-
-        $normalized = bcmul($rounded, $divisor, self::DECIMALS);
-
-        return new self((float) $normalized);
     }
 
     public function __toString(): string

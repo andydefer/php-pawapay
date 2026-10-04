@@ -352,12 +352,11 @@ class PawapayService implements PawapayInterface
     }
 
     /**
-     * Normalize the amount according to the currency decimals.
+     * Normalize the amount according to the currency's expected granularity.
      *
-     * USD keeps 2 decimals (unchanged). Every other supported currency is
-     * rounded to the nearest hundred via {@see AmountVO::toNormal()} before
-     * being converted to a float, so the amount stays aligned with the
-     * currency's expected granularity.
+     * USD keeps its 2 decimals (unchanged). The Congolese franc (CDF) is
+     * rounded UP to the next hundred. Every other supported currency is
+     * rounded UP to the next ten.
      *
      * @param  AmountVO  $amount  Amount to normalize
      * @param  Currency  $currency  Target currency
@@ -367,6 +366,10 @@ class PawapayService implements PawapayInterface
     {
         if ($currency === Currency::USD) {
             return $amount->toFloat();
+        }
+
+        if ($currency === Currency::CDF) {
+            return $amount->toNormal(2)->toFloat();
         }
 
         return $amount->toNormal(1)->toFloat();
