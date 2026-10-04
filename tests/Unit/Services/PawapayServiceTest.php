@@ -247,13 +247,13 @@ final class PawapayServiceTest extends TestCase
         // Act
         $this->service->initiateDeposit($record);
 
-        // Assert: 15.10 was rounded to the nearest ten (20.00)
+        // Assert: 15.10 was rounded to the nearest ten (20)
         $body = json_decode(
             (string) $this->client->getMockHandler()->getLastRequest()?->getBody(),
             true,
         );
 
-        $this->assertSame('20.00', (string) $body['amount']);
+        $this->assertSame('20', (string) $body['amount']);
     }
 
     public function test_initiate_deposit_rounds_non_usd_integer_amount_to_nearest_ten(): void
@@ -289,13 +289,13 @@ final class PawapayServiceTest extends TestCase
         // Act
         $this->service->initiateDeposit($record);
 
-        // Assert: 15.00 was rounded to the nearest ten (20.00)
+        // Assert: 15.00 was rounded to the nearest ten (20)
         $body = json_decode(
             (string) $this->client->getMockHandler()->getLastRequest()?->getBody(),
             true,
         );
 
-        $this->assertSame('20.00', (string) $body['amount']);
+        $this->assertSame('20', (string) $body['amount']);
     }
 
     // ==================== CHECK DEPOSIT STATUS ====================
@@ -552,13 +552,13 @@ final class PawapayServiceTest extends TestCase
         // Act
         $this->service->createPaymentPage($record);
 
-        // Assert: 25.10 was rounded to the nearest ten (30.00)
+        // Assert: 25.10 was rounded to the nearest ten (30)
         $body = json_decode(
             (string) $this->client->getMockHandler()->getLastRequest()?->getBody(),
             true,
         );
 
-        $this->assertSame('30.00', (string) $body['amountDetails']['amount']);
+        $this->assertSame('30', (string) $body['amountDetails']['amount']);
     }
 
     public function test_create_payment_page_rounds_non_usd_integer_amount_to_nearest_ten(): void
@@ -586,13 +586,13 @@ final class PawapayServiceTest extends TestCase
         // Act
         $this->service->createPaymentPage($record);
 
-        // Assert: 25.00 was rounded to the nearest ten (30.00)
+        // Assert: 25.00 was rounded to the nearest ten (30)
         $body = json_decode(
             (string) $this->client->getMockHandler()->getLastRequest()?->getBody(),
             true,
         );
 
-        $this->assertSame('30.00', (string) $body['amountDetails']['amount']);
+        $this->assertSame('30', (string) $body['amountDetails']['amount']);
     }
 
     // ==================== HOOKS ====================

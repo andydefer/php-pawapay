@@ -21,7 +21,7 @@ final class AmountVOTest extends TestCase
     public function test_create_amount_from_integer(): void
     {
         $amount = new AmountVO(100.0);
-        $this->assertSame('100.00', $amount->getValue());
+        $this->assertSame('100', $amount->getValue());
         $this->assertSame('100.00', $amount->toString());
     }
 
@@ -49,7 +49,7 @@ final class AmountVOTest extends TestCase
     public function test_create_amount_from_float_with_no_decimals(): void
     {
         $amount = new AmountVO(100.0);
-        $this->assertSame('100.00', $amount->getValue());
+        $this->assertSame('100', $amount->getValue());
         $this->assertSame('100.00', $amount->toString());
     }
 
@@ -208,7 +208,7 @@ final class AmountVOTest extends TestCase
         $amount = new AmountVO(100.00);
         $result = $amount->divide(4);
         $this->assertSame('25.00', $result->toString());
-        $this->assertSame('25.00', $result->getValue());
+        $this->assertSame('25', $result->getValue());
     }
 
     public function test_divide_with_float(): void
@@ -216,7 +216,7 @@ final class AmountVOTest extends TestCase
         $amount = new AmountVO(100.00);
         $result = $amount->divide(2.5);
         $this->assertSame('40.00', $result->toString());
-        $this->assertSame('40.00', $result->getValue());
+        $this->assertSame('40', $result->getValue());
     }
 
     public function test_divide_with_string(): void
@@ -224,7 +224,7 @@ final class AmountVOTest extends TestCase
         $amount = new AmountVO(100.00);
         $result = $amount->divide('4');
         $this->assertSame('25.00', $result->toString());
-        $this->assertSame('25.00', $result->getValue());
+        $this->assertSame('25', $result->getValue());
     }
 
     public function test_divide_with_rounding(): void
@@ -256,7 +256,7 @@ final class AmountVOTest extends TestCase
         $amount = new AmountVO(200.00);
         $result = $amount->percentage(15);
         $this->assertSame('30.00', $result->toString());
-        $this->assertSame('30.00', $result->getValue());
+        $this->assertSame('30', $result->getValue());
     }
 
     public function test_percentage_with_float(): void
@@ -264,7 +264,7 @@ final class AmountVOTest extends TestCase
         $amount = new AmountVO(200.00);
         $result = $amount->percentage(15.5);
         $this->assertSame('31.00', $result->toString());
-        $this->assertSame('31.00', $result->getValue());
+        $this->assertSame('31', $result->getValue());
     }
 
     public function test_percentage_with_string(): void
@@ -272,7 +272,7 @@ final class AmountVOTest extends TestCase
         $amount = new AmountVO(200.00);
         $result = $amount->percentage('15');
         $this->assertSame('30.00', $result->toString());
-        $this->assertSame('30.00', $result->getValue());
+        $this->assertSame('30', $result->getValue());
     }
 
     public function test_percentage_with_rounding(): void
@@ -280,7 +280,7 @@ final class AmountVOTest extends TestCase
         $amount = new AmountVO(200.00);
         $result = $amount->percentage(15);
         $this->assertSame('30.00', $result->toString());
-        $this->assertSame('30.00', $result->getValue());
+        $this->assertSame('30', $result->getValue());
     }
 
     public function test_is_zero_should_always_be_false(): void
@@ -348,7 +348,7 @@ final class AmountVOTest extends TestCase
             ->multiply(2)
             ->percentage(10);
         $this->assertSame('24.00', $result->toString());
-        $this->assertSame('24.00', $result->getValue());
+        $this->assertSame('24', $result->getValue());
     }
 
     public function test_chaining_operations_with_rounding(): void
@@ -359,7 +359,7 @@ final class AmountVOTest extends TestCase
             ->multiply(2)
             ->percentage(15);
         $this->assertSame('36.00', $result->toString());
-        $this->assertSame('36.00', $result->getValue());
+        $this->assertSame('36', $result->getValue());
     }
 
     public function test_to_string_magic_method(): void
@@ -381,7 +381,7 @@ final class AmountVOTest extends TestCase
             $amount = $amount->add(new AmountVO(0.01));
         }
         $this->assertSame('1001.00', $amount->toString());
-        $this->assertSame('1001.00', $amount->getValue());
+        $this->assertSame('1001', $amount->getValue());
     }
 
     public function test_precision_with_bcmath(): void
@@ -389,7 +389,7 @@ final class AmountVOTest extends TestCase
         $amount = new AmountVO(0.1);
         $result = $amount->multiply(10);
         $this->assertSame('1.00', $result->toString());
-        $this->assertSame('1.00', $result->getValue());
+        $this->assertSame('1', $result->getValue());
     }
 
     public function test_to_normal_rounds_up_when_last_digit_below_five(): void

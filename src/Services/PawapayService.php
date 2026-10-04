@@ -48,8 +48,6 @@ class PawapayService implements PawapayInterface
             return $before;
         }
 
-        $record = $before;
-
         $deposit = InitiateDepositVO::from([
             'depositId' => $record->depositId,
             'payer' => $record->payer,
@@ -362,14 +360,15 @@ class PawapayService implements PawapayInterface
      * @param  Currency  $currency  Target currency
      * @return float Normalized amount as a float
      */
-    private function normalizeAmount(AmountVO $amount, Currency $currency): float
+    private function normalizeAmount(AmountVO $amount, Currency $currency): float|int
     {
         if ($currency === Currency::USD) {
             return $amount->toFloat();
         }
 
         if ($currency === Currency::CDF) {
-            return $amount->toNormal(2)->toFloat();
+
+            return (int) $amount->toNormal(2)->getValue();
         }
 
         return $amount->toNormal(1)->toFloat();

@@ -26,11 +26,21 @@ final class AmountVO extends AbstractValueObject
         $this->value = $this->formatNumber((string) $value);
     }
 
+    /**
+     * Get the amount without trailing zero decimals when they are "00".
+     *
+     * The value is stored internally with two decimals for precision, but
+     * when the decimal part is exactly "00" it is not meaningful for display
+     * or transport (e.g. "40000.00" is returned as "40000").
+     */
     public function getValue(): string
     {
-        return $this->value;
+        return $this->stripEmptyDecimals($this->value);
     }
 
+    /**
+     * Get the amount with the full two-decimal precision.
+     */
     public function toString(): string
     {
         return $this->value;
@@ -142,8 +152,23 @@ final class AmountVO extends AbstractValueObject
         return $sign.$integer.'.'.$decimal;
     }
 
+    /**
+     * Remove the decimal part when it is exactly "00".
+     *
+     * Only "00" is stripped — values like "40.10" or "40.50" keep their
+     * decimals because they carry meaningful information.
+     */
+    private function stripEmptyDecimals(string $value): string
+    {
+        if (str_ends_with($value, '.00')) {
+            return substr($value, 0, -3);
+        }
+
+        return $value;
+    }
+
     public function __toString(): string
     {
-        return $this->value;
+        return $this->getValue();
     }
 }
